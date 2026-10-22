@@ -1,0 +1,15 @@
+/* PractiTrack — Company Dashboard Styles */
+/* Reuse most of the student shell, override brand color */
+:root {
+    --company-primary: #0F766E; /* Teal accent for company */
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #0F766E 0%, #115E59 100%);
+}
+.sidebar-brand .logo-mark {
+    background: var(--light-blue); /* Different logo color */
+}
+.sidebar-menu a.active::before {
+    background: var(--light-blue);
+}

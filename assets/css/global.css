@@ -1,0 +1,117 @@
+/* PractiTrack — Global Styles */
+
+:root {
+    --light-blue: #4FC3F7;
+    --light-blue-dark: #0288D1;
+    --light-blue-light: #E1F5FE;
+    --blue-bg: #F0F9FF;
+
+    --red: #E53935;
+    --red-dark: #B71C1C;
+    --red-light: #FFEBEE;
+
+    --white: #FFFFFF;
+    --gray-100: #F5F7FA;
+    --gray-200: #E4E7EB;
+    --gray-400: #9AA5B1;
+    --gray-600: #52606D;
+    --gray-800: #1F2933;
+
+    --success: #2E7D32;
+    --warning: #F9A825;
+
+    --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-heading: 'Poppins', 'Segoe UI', sans-serif;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-full: 999px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    font-family: var(--font-main);
+    color: var(--gray-800);
+    background-color: var(--white);
+    line-height: 1.6;
+}
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
+img { max-width: 100%; display: block; }
+button { font-family: inherit; cursor: pointer; border: none; outline: none; }
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 26px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    transition: all 0.25s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+.btn-primary { background-color: var(--red); color: var(--white); }
+.btn-primary:hover { background-color: var(--red-dark); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.btn-secondary { background-color: var(--light-blue); color: var(--white); }
+.btn-secondary:hover { background-color: var(--light-blue-dark); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.btn-outline { background: transparent; color: var(--red); border: 2px solid var(--red); }
+.btn-outline:hover { background-color: var(--red); color: var(--white); }
+.btn-ghost { background: transparent; color: var(--light-blue-dark); border: 2px solid var(--light-blue); }
+.btn-ghost:hover { background: var(--light-blue-light); }
+
+
+/* ==========================================
+   CUSTOM SCROLLBAR (Global)
+   ========================================== */
+::-webkit-scrollbar {
+    width: 6px;  /* Thin width */
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; /* Invisible track */
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2); /* Semi-transparent white for sidebars */
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* For white backgrounds (like tables or the main content area) */
+.main ::-webkit-scrollbar-thumb,
+.table-wrap ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15); /* Semi-transparent black for light backgrounds */
+}
+
+.main ::-webkit-scrollbar-thumb:hover,
+.table-wrap ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* HIDE SCROLL BAR */
+.sidebar-menu::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+.sidebar-menu:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+}
