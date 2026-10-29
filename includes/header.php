@@ -13,6 +13,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <title>PractiTrack — OJT Monitoring System</title>
     <link rel="stylesheet" href="assets/css/global.css" />
     <link rel="stylesheet" href="assets/css/homepage.css" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 

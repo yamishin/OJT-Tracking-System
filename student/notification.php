@@ -21,9 +21,9 @@ student_layout_top('Notifications', 'Your recent alerts and updates');
     <div class="panel-body no-pad">
         <?php if (empty($notifs)): ?>
             <div class="empty-state">
-                <div class="em-icon">🔔</div>
-                <h4>No notifications yet</h4>
-                <p>We'll notify you when something important happens.</p>
+                <div class="em-icon"><i class="fas fa-bell-slash" style="color:var(--gray-300);"></i></div>
+                <h4>No notifications</h4>
+                <p>You're all caught up!</p>
             </div>
         <?php else: ?>
             <ul class="notif-list">

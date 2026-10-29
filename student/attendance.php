@@ -7,24 +7,35 @@ $stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY lo
 $stmt->execute([$studentId]);
 $records = $stmt->fetchAll();
 
+// Total standard hours (for progress)
 $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ?");
 $stmt->execute([$studentId]);
 $totalHours = (float)$stmt->fetchColumn();
+
+// Total overtime hours (for display)
+$stmt = $pdo->prepare("SELECT COALESCE(SUM(overtime_hours),0) FROM attendance WHERE student_id = ?");
+$stmt->execute([$studentId]);
+$totalOvertime = (float)$stmt->fetchColumn();
 
 student_layout_top('Attendance', 'Log your daily time in and time out');
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><span>✓</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
-    <div class="alert alert-error"><span>⚠</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
 <div class="panel">
     <div class="panel-header">
         <h3>Log Attendance</h3>
-        <div class="sub">Total hours rendered: <strong><?= number_format($totalHours, 2) ?></strong></div>
+        <div class="sub">
+            Total standard hours: <strong><?= number_format($totalHours, 2) ?></strong> 
+            <?php if ($totalOvertime > 0): ?>
+                | Overtime: <strong style="color:var(--warning);"><?= number_format($totalOvertime, 2) ?></strong>
+            <?php endif; ?>
+        </div>
     </div>
     <div class="panel-body">
         <form action="/PractiTrack/php/student/attendance-handler.php" method="POST">
@@ -37,7 +48,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                     <input type="date" name="log_date" value="<?= date('Y-m-d') ?>" required>
                 </div>
                 
-                <!-- Grouped Time In & Out -->
                 <div class="field" style="border-right: 1px solid var(--gray-200); padding-right: 10px;">
                     <label>Time In</label>
                     <input type="time" id="time_in" name="time_in" required>
@@ -47,14 +57,18 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                     <input type="time" id="time_out" name="time_out" required>
                 </div>
 
-                <!-- Auto-calculated fields -->
                 <div class="field">
-                    <label>Computed Hours</label>
+                    <label>Computed Hours (Standard)</label>
                     <input type="text" id="total_hours_display" readonly value="0.00" style="background:var(--gray-100); font-weight:bold; color:var(--light-blue-dark);">
                 </div>
                 <div class="field">
                     <label>Auto-Status</label>
                     <input type="text" id="status_display" readonly value="Waiting..." style="background:var(--gray-100); border:none;">
+                </div>
+                
+                <div class="field full">
+                    <label>Punctuality (Standard is 8:00 AM)</label>
+                    <input type="text" id="punctuality_display" readonly value="—" style="background:var(--gray-100); border:none;">
                 </div>
 
                 <div class="field full">
@@ -83,14 +97,15 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                     <tr>
                         <th>Date</th>
                         <th>Time In / Out</th>
-                        <th>Hours</th>
+                        <th>Standard Hours</th>
+                        <th>Punctuality</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($records)): ?>
-                        <tr><td colspan="5" class="empty">No attendance yet. Log your first entry above.</td></tr>
+                        <tr><td colspan="6" class="empty">No attendance yet. Log your first entry above.</td></tr>
                     <?php else: ?>
                         <?php foreach ($records as $r): ?>
                             <tr>
@@ -100,7 +115,18 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                                     <span style="margin:0 8px; color:var(--gray-400);">→</span>
                                     <span style="color:var(--gray-600);"><?= $r['time_out'] ? date('h:i A', strtotime($r['time_out'])) : '—' ?></span>
                                 </td>
+                                <!-- ONLY SHOW STANDARD HOURS IN TABLE -->
                                 <td><strong><?= number_format((float)$r['total_hours'], 2) ?></strong></td>
+                                <td>
+                                    <span class="badge" style="background:
+                                        <?php 
+                                            if($r['punctuality'] == 'Early') echo '#E8F5E9; color:#1B5E20;';
+                                            elseif($r['punctuality'] == 'On Time') echo '#E0F2FE; color:#0284C7;';
+                                            else echo '#FEE2E2; color:#991B1B;';
+                                        ?>">
+                                        <?= e($r['punctuality'] ?? 'On Time') ?>
+                                    </span>
+                                </td>
                                 <td>
                                     <span class="badge" style="background:
                                         <?php 
@@ -114,7 +140,9 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                                     </span>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-ghost" onclick="viewAttendance(<?= htmlspecialchars(json_encode($r)) ?>)">View</button>
+                                    <button type="button" class="btn btn-sm btn-ghost" onclick="viewAttendance(<?= htmlspecialchars(json_encode($r)) ?>)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -125,12 +153,12 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     </div>
 </div>
 
-<!-- The Modal Popup -->
+<!-- ENHANCED MODAL POPUP -->
 <div class="modal-overlay" id="attendanceModal">
     <div class="modal-box">
         <div class="modal-header">
-            <h3>Attendance Details</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <h3><i class="fas fa-clipboard-list"></i> Attendance Details</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body">
             <div class="detail-row">
@@ -138,23 +166,24 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                 <span class="detail-value" id="m_date"></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Time In</span>
-                <span class="detail-value" id="m_time_in"></span>
+                <span class="detail-label">Time In / Out</span>
+                <span class="detail-value" id="m_times"></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Time Out</span>
-                <span class="detail-value" id="m_time_out"></span>
+                <span class="detail-label">Punctuality</span>
+                <span class="detail-value" id="m_punctuality"></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Lunch Break</span>
-                <span class="detail-value" id="m_lunch"></span>
+                <span class="detail-label">Standard Hours</span>
+                <span class="detail-value" id="m_standard_hours" style="color:var(--light-blue-dark);"></span>
+            </div>
+            <!-- OVERTIME ROW (Hidden by default if 0) -->
+            <div class="detail-row overtime-row" id="m_overtime_row" style="display:none;">
+                <span class="detail-label">Overtime Hours</span>
+                <span class="detail-value" id="m_overtime_hours"></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Final Hours Rendered</span>
-                <span class="detail-value" id="m_hours" style="color:var(--light-blue-dark); font-size:16px;"></span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">Calculated Status</span>
+                <span class="detail-label">Status</span>
                 <span class="detail-value" id="m_status"></span>
             </div>
             <div class="detail-row">
@@ -172,7 +201,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     const modal = document.getElementById('attendanceModal');
 
     function viewAttendance(data) {
-        // Format Times
         const formatTime = (timeStr) => {
             if (!timeStr) return '—';
             let [h, m] = timeStr.split(':');
@@ -187,16 +215,26 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         };
 
-        // Populate Modal
         document.getElementById('m_date').textContent = formatDate(data.log_date);
-        document.getElementById('m_time_in').textContent = formatTime(data.time_in);
-        document.getElementById('m_time_out').textContent = formatTime(data.time_out);
-        document.getElementById('m_lunch').textContent = (data.lunch_deducted == 1) ? 'Deducted (-1 hr)' : 'Not Deducted';
-        document.getElementById('m_hours').textContent = parseFloat(data.total_hours).toFixed(2) + ' hours';
+        document.getElementById('m_times').textContent = `${formatTime(data.time_in)} - ${formatTime(data.time_out)}`;
+        document.getElementById('m_punctuality').textContent = data.punctuality || 'On Time';
         document.getElementById('m_status').textContent = data.status;
         document.getElementById('m_remarks').textContent = data.remarks || 'No remarks provided.';
 
-        // Show Modal
+        // Standard Hours
+        document.getElementById('m_standard_hours').textContent = parseFloat(data.total_hours).toFixed(2) + ' hours';
+
+        // Overtime Logic for Modal
+        const otHours = parseFloat(data.overtime_hours || 0);
+        const otRow = document.getElementById('m_overtime_row');
+        
+        if (otHours > 0) {
+            otRow.style.display = 'flex';
+            document.getElementById('m_overtime_hours').textContent = otHours.toFixed(2) + ' hours';
+        } else {
+            otRow.style.display = 'none';
+        }
+
         modal.classList.add('open');
     }
 
@@ -204,7 +242,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
         modal.classList.remove('open');
     }
 
-    // Close modal if clicking outside
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeModal();
     });

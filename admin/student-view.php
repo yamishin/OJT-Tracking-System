@@ -50,28 +50,24 @@ admin_layout_top('Student Details', 'Full system overview');
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon">⏱</div>
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
         <div class="stat-label">Hours Rendered</div>
-        <div class="stat-value"><?= number_format($renderedHours, 1) ?></div>
-        <div class="stat-sub">of <?= $requiredHours ?> required (<?= $progress ?>%)</div>
+        <!-- ... -->
     </div>
     <div class="stat-card yellow">
-        <div class="stat-icon">📁</div>
+        <div class="stat-icon"><i class="fas fa-folder"></i></div>
         <div class="stat-label">Documents</div>
-        <div class="stat-value"><?= $docCount ?></div>
-        <div class="stat-sub">uploaded</div>
+        <!-- ... -->
     </div>
     <div class="stat-card green">
-        <div class="stat-icon">📝</div>
+        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
         <div class="stat-label">Reports</div>
-        <div class="stat-value"><?= $reportCount ?></div>
-        <div class="stat-sub">submitted</div>
+        <!-- ... -->
     </div>
     <div class="stat-card red">
-        <div class="stat-icon">🏆</div>
+        <div class="stat-icon"><i class="fas fa-award"></i></div>
         <div class="stat-label">Final Grade</div>
-        <div class="stat-value"><?= $finalEval ? $finalEval['score'] : '—' ?></div>
-        <div class="stat-sub"><?= $finalEval ? 'out of 100' : 'Not yet evaluated' ?></div>
+        <!-- ... -->
     </div>
 </div>
 

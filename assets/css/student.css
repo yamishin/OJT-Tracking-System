@@ -569,3 +569,62 @@
     background: var(--gray-100);
     text-align: right;
 }
+
+
+/* FONT AWESOME */
+.stat-icon i, 
+.topbar-icon i, 
+.sidebar-menu a .icon i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/* Enhanced Modal Design */
+.modal-header {
+    background: var(--light-blue-light);
+    border-bottom: 2px solid var(--light-blue);
+}
+
+.modal-header h3 {
+    color: var(--light-blue-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-body {
+    padding: 0; /* Remove padding so detail rows touch edges */
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 14px;
+}
+
+.detail-row:nth-child(even) {
+    background-color: var(--gray-100);
+}
+
+.detail-label {
+    color: var(--gray-600);
+    font-weight: 600;
+}
+
+.detail-value {
+    font-weight: 700;
+    color: var(--gray-800);
+    text-align: right;
+}
+
+/* Overtime Highlight */
+.overtime-row {
+    background: #FFF8E1 !important;
+    border-left: 4px solid var(--warning);
+}
+.overtime-row .detail-label { color: #B26A00; }
+.overtime-row .detail-value { color: #B26A00; font-size: 16px; }

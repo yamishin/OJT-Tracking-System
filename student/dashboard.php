@@ -3,47 +3,46 @@ require_once __DIR__ . '/../includes/student-layout.php';
 
 $studentId = $_SESSION['user_id'];
 
-// Student profile
-$stmt = $pdo->prepare("SELECT * FROM student_profiles WHERE user_id = ?");
+// 1. Fetch student profile for required hours
+$stmt = $pdo->prepare("SELECT required_hours FROM student_profiles WHERE user_id = ?");
 $stmt->execute([$studentId]);
-$profile = $stmt->fetch() ?: [];
+$profile = $stmt->fetch();
 $requiredHours = (int)($profile['required_hours'] ?? 486);
 
-// Total hours
+// 2. Total Hours Rendered
 $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours), 0) FROM attendance WHERE student_id = ?");
 $stmt->execute([$studentId]);
 $totalHours = (float)$stmt->fetchColumn();
 
-// Days present
+// 3. Days Present (Count of all attendance logs)
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM attendance WHERE student_id = ?");
 $stmt->execute([$studentId]);
 $daysPresent = (int)$stmt->fetchColumn();
 
-// Documents
-$stmt = $pdo->prepare("SELECT COUNT(*) AS total, SUM(status='approved') AS approved, SUM(status='pending') AS pending FROM documents WHERE student_id = ?");
+// 4. Documents Stats (Total and Approved)
+$stmt = $pdo->prepare("SELECT COUNT(*) AS total, SUM(status = 'approved') AS approved FROM documents WHERE student_id = ?");
 $stmt->execute([$studentId]);
-$docs = $stmt->fetch() ?: ['total' => 0, 'approved' => 0, 'pending' => 0];
+$docs = $stmt->fetch();
+$docsTotal = (int)($docs['total'] ?? 0);
+$docsApproved = (int)($docs['approved'] ?? 0);
 
-// Weekly reports
-$stmt = $pdo->prepare("SELECT COUNT(*) AS total, SUM(status='approved') AS approved FROM weekly_reports WHERE student_id = ?");
+// 5. Weekly Reports Stats (Total and Approved)
+$stmt = $pdo->prepare("SELECT COUNT(*) AS total, SUM(status = 'approved') AS approved FROM weekly_reports WHERE student_id = ?");
 $stmt->execute([$studentId]);
-$reports = $stmt->fetch() ?: ['total' => 0, 'approved' => 0];
+$reports = $stmt->fetch();
+$reportsTotal = (int)($reports['total'] ?? 0);
+$reportsApproved = (int)($reports['approved'] ?? 0);
 
-// Progress
+// 6. Compute Overall Progress
 $hoursProgress = $requiredHours > 0 ? min(100, round(($totalHours / $requiredHours) * 100, 1)) : 0;
 $remainingHours = max(0, $requiredHours - $totalHours);
 
-// Expected completion (8 hrs/day)
-$daysNeeded = $remainingHours > 0 ? ceil($remainingHours / 8) : 0;
-$expectedDate = date('M d, Y', strtotime("+$daysNeeded weekdays"));
-
-// Recent attendance
-$stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY log_date DESC LIMIT 5");
+// 7. Recent Activity
+$stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY log_date DESC LIMIT 3");
 $stmt->execute([$studentId]);
 $recentAttendance = $stmt->fetchAll();
 
-// Recent notifications
-$stmt = $pdo->prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 5");
+$stmt = $pdo->prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 3");
 $stmt->execute([$studentId]);
 $recentNotifs = $stmt->fetchAll();
 
@@ -51,40 +50,42 @@ student_layout_top('Dashboard', 'Welcome back! Here\'s your OJT overview.');
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><span>✓</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
-    <div class="alert alert-error"><span>⚠</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
+<!-- STATS CARDS -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon">⏱</div>
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
         <div class="stat-label">Hours Rendered</div>
         <div class="stat-value"><?= number_format($totalHours, 1) ?></div>
         <div class="stat-sub">of <?= $requiredHours ?> required</div>
     </div>
     <div class="stat-card green">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
         <div class="stat-label">Days Present</div>
         <div class="stat-value"><?= $daysPresent ?></div>
         <div class="stat-sub">attendance logs</div>
     </div>
     <div class="stat-card yellow">
-        <div class="stat-icon">📁</div>
+        <div class="stat-icon"><i class="fas fa-folder-open"></i></div>
         <div class="stat-label">Documents</div>
-        <div class="stat-value"><?= (int)$docs['approved'] ?>/<?= (int)$docs['total'] ?></div>
+        <div class="stat-value"><?= $docsApproved ?> / <?= $docsTotal ?></div>
         <div class="stat-sub">approved / total</div>
     </div>
     <div class="stat-card red">
-        <div class="stat-icon">📝</div>
+        <div class="stat-icon"><i class="fas fa-file-signature"></i></div>
         <div class="stat-label">Weekly Reports</div>
-        <div class="stat-value"><?= (int)$reports['approved'] ?></div>
-        <div class="stat-sub">of <?= (int)$reports['total'] ?> approved</div>
+        <div class="stat-value"><?= $reportsApproved ?> / <?= $reportsTotal ?></div>
+        <div class="stat-sub">approved / total</div>
     </div>
 </div>
 
 <div class="grid-2">
+    <!-- OVERALL PROGRESS -->
     <div class="panel">
         <div class="panel-header">
             <div>
@@ -104,36 +105,16 @@ student_layout_top('Dashboard', 'Welcome back! Here\'s your OJT overview.');
                 </div>
             </div>
 
-            <div class="progress-block">
-                <div class="pb-head">
-                    <span>Documents Approved</span>
-                    <span><?= (int)$docs['approved'] ?> / <?= max(1, (int)$docs['total']) ?></span>
-                </div>
-                <div class="pb-bar">
-                    <div class="pb-fill red" data-width="<?= $docs['total'] > 0 ? round(($docs['approved'] / $docs['total']) * 100) : 0 ?>%"></div>
-                </div>
-            </div>
-
-            <div class="progress-block">
-                <div class="pb-head">
-                    <span>Weekly Reports Approved</span>
-                    <span><?= (int)$reports['approved'] ?> / <?= max(1, (int)$reports['total']) ?></span>
-                </div>
-                <div class="pb-bar">
-                    <div class="pb-fill green" data-width="<?= $reports['total'] > 0 ? round(($reports['approved'] / $reports['total']) * 100) : 0 ?>%"></div>
-                </div>
-            </div>
-
             <div class="alert alert-info" style="margin-top:20px;margin-bottom:0;">
-                <span>📅</span>
+                <i class="fas fa-info-circle" style="font-size:18px;"></i>
                 <span>
-                    <strong>Remaining:</strong> <?= number_format($remainingHours, 1) ?> hours
-                    &nbsp;·&nbsp; <strong>Est. Completion:</strong> <?= $expectedDate ?>
+                    <strong>Remaining:</strong> <?= number_format($remainingHours, 1) ?> hours left to complete your OJT.
                 </span>
             </div>
         </div>
     </div>
 
+    <!-- RECENT NOTIFICATIONS -->
     <div class="panel">
         <div class="panel-header">
             <h3>Recent Notifications</h3>
@@ -142,7 +123,7 @@ student_layout_top('Dashboard', 'Welcome back! Here\'s your OJT overview.');
         <div class="panel-body no-pad">
             <?php if (empty($recentNotifs)): ?>
                 <div class="empty-state">
-                    <div class="em-icon">🔔</div>
+                    <div class="em-icon"><i class="fas fa-bell-slash" style="color:var(--gray-300);"></i></div>
                     <h4>No notifications</h4>
                     <p>You're all caught up!</p>
                 </div>
@@ -150,7 +131,7 @@ student_layout_top('Dashboard', 'Welcome back! Here\'s your OJT overview.');
                 <ul class="notif-list">
                     <?php foreach ($recentNotifs as $n): ?>
                         <li class="notif-item <?= $n['is_read'] ? '' : 'unread' ?>">
-                            <div class="n-icon">🔔</div>
+                            <div class="n-icon"><i class="fas fa-bell"></i></div>
                             <div class="n-body">
                                 <div class="n-title"><?= e($n['title']) ?></div>
                                 <div class="n-message"><?= e($n['message']) ?></div>
@@ -164,6 +145,7 @@ student_layout_top('Dashboard', 'Welcome back! Here\'s your OJT overview.');
     </div>
 </div>
 
+<!-- RECENT ATTENDANCE -->
 <div class="panel">
     <div class="panel-header">
         <h3>Recent Attendance</h3>
@@ -191,7 +173,7 @@ student_layout_top('Dashboard', 'Welcome back! Here\'s your OJT overview.');
                                 <td><?= $a['time_in'] ? date('h:i A', strtotime($a['time_in'])) : '—' ?></td>
                                 <td><?= $a['time_out'] ? date('h:i A', strtotime($a['time_out'])) : '—' ?></td>
                                 <td><?= number_format((float)$a['total_hours'], 2) ?></td>
-                                <td><span class="badge <?= e($a['status']) ?>"><?= e($a['status']) ?></span></td>
+                                <td><span class="badge <?= strtolower(str_replace(' ', '', $a['status'])) ?>"><?= e($a['status']) ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

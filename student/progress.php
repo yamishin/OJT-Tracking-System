@@ -28,25 +28,25 @@ student_layout_top('Progress', 'Track your OJT completion');
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon">⏱</div>
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
         <div class="stat-label">Rendered</div>
         <div class="stat-value"><?= number_format($totalHours, 1) ?></div>
         <div class="stat-sub">hours</div>
     </div>
     <div class="stat-card red">
-        <div class="stat-icon">🎯</div>
+        <div class="stat-icon"><i class="fas fa-bullseye"></i></div>
         <div class="stat-label">Required</div>
         <div class="stat-value"><?= $requiredHours ?></div>
         <div class="stat-sub">total hours</div>
     </div>
     <div class="stat-card yellow">
-        <div class="stat-icon">⏳</div>
+        <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
         <div class="stat-label">Remaining</div>
         <div class="stat-value"><?= number_format($remaining, 1) ?></div>
         <div class="stat-sub">hours left</div>
     </div>
     <div class="stat-card green">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
         <div class="stat-label">Est. Completion</div>
         <div class="stat-value" style="font-size:16px;"><?= $expectedDate ?></div>
         <div class="stat-sub"><?= $daysNeeded ?> working day(s)</div>
@@ -70,7 +70,7 @@ student_layout_top('Progress', 'Track your OJT completion');
         </div>
 
         <div class="alert alert-info" style="margin-top:20px;margin-bottom:0;">
-            <span>💡</span>
+            <i class="fas fa-lightbulb" style="font-size:18px;"></i>
             <span>
                 At 8 hours per working day, you need approximately
                 <strong><?= $daysNeeded ?> more days</strong> to complete your OJT.

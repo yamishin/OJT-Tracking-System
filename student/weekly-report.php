@@ -27,10 +27,10 @@ student_layout_top('Reports', 'Generate weekly or monthly reports from your atte
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><span>✓</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span>...</span></div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
-    <div class="alert alert-error"><span>⚠</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span>...</span></div>
 <?php endif; ?>
 
 <div class="panel">

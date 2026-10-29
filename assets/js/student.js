@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar Toggle
+    // 1. Sidebar Toggle
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
     if (menuToggle && sidebar) {
@@ -11,96 +11,129 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Progress Bars Animation
+    // 2. Progress Bars Animation
     document.querySelectorAll('.pb-fill').forEach(bar => {
         const target = bar.dataset.width || '0%';
         bar.style.width = '0%';
         setTimeout(() => { bar.style.width = target; }, 250);
     });
 
-    // Confirm actions
+    // 3. Confirm actions
     document.querySelectorAll('[data-confirm]').forEach(el => {
         el.addEventListener('click', e => {
             if (!confirm(el.dataset.confirm)) e.preventDefault();
         });
     });
 
-        // ---------- Automated Attendance Computation ----------
+    // 4. Automated Attendance Computation
     const timeIn = document.getElementById('time_in');
     const timeOut = document.getElementById('time_out');
     const hoursDisplay = document.getElementById('total_hours_display');
     const statusDisplay = document.getElementById('status_display');
+    const punctualityDisplay = document.getElementById('punctuality_display');
 
     function computeHours() {
         if (!timeIn || !timeOut || !hoursDisplay) return;
-        
+
+        // If either time is empty, reset the displays
         if (!timeIn.value || !timeOut.value) {
             hoursDisplay.value = '0.00';
             if (statusDisplay) statusDisplay.value = 'Waiting for Time Out...';
+            if (punctualityDisplay) punctualityDisplay.value = '—';
             return;
         }
 
+        // Parse inputs into hours and minutes
         const [h1, m1] = timeIn.value.split(':').map(Number);
         const [h2, m2] = timeOut.value.split(':').map(Number);
-        
+
+        // --- PUNCTUALITY LOGIC ---
+        // Standard is 8:00 AM (8 * 60 = 480 minutes)
+        const standardStart = 8 * 60; 
+        const startInMinutes = h1 * 60 + m1;
+
+        let punctuality = '';
+        if (startInMinutes < standardStart) {
+            punctuality = 'Early';
+        } else if (startInMinutes === standardStart) {
+            punctuality = 'On Time';
+        } else {
+            punctuality = 'Late';
+        }
+
+        if (punctualityDisplay) {
+            punctualityDisplay.value = punctuality;
+            punctualityDisplay.style.fontWeight = 'bold';
+            if (punctuality === 'Early') punctualityDisplay.style.color = 'var(--success)';
+            else if (punctuality === 'On Time') punctualityDisplay.style.color = 'var(--light-blue-dark)';
+            else if (punctuality === 'Late') punctualityDisplay.style.color = 'var(--red)';
+        }
+
+        // --- HOURS LOGIC ---
         let start = h1 * 60 + m1;
         let end = h2 * 60 + m2;
-        
-        // Handle overnight (past midnight)
-        if (end < start) end += 24 * 60;
-        
-        let rawHours = (end - start) / 60;
+
+        let isExceeded = false;
+        const cutoffTime = 19 * 60; // 7:00 PM in minutes
+
+        // Cap at 7:00 PM
+        if (h2 >= 19 && end > cutoffTime) {
+            end = cutoffTime; 
+            isExceeded = true;
+        }
+
+        // Handle overnight just in case
+        if (end < start && !isExceeded) end += 24 * 60;
+
+        // Calculate RAW hours and minutes
+        const diffMinutes = end - start;
+        const rawHours = diffMinutes / 60;
+
         let finalHours = rawHours;
         let status = '';
         let lunchDeducted = 0;
 
-        // Rule 1: 8 hours or more (Whole Day) -> Deduct 1 hour lunch
+        // Deduct 1 hour if 8+ hours
         if (rawHours >= 8) {
             finalHours = rawHours - 1;
             lunchDeducted = 1;
-        } 
-        // Rule 2: Exactly 4 hours (Half Day)
-        else if (rawHours >= 3.5 && rawHours < 4.5) {
-            finalHours = rawHours;
+        } else if (rawHours >= 3.5 && rawHours < 4.5) {
             status = 'Half Day';
-        } 
-        // Rule 3: Under 8 hours (Undertime)
-        else if (rawHours < 8) {
-            finalHours = rawHours;
+        } else {
             status = 'Undertime';
         }
 
-        // Rule 4: Overtime Checks (Based on 7:00 PM / 19:00)
-        // Check if time out is past 19:00
-        if (h2 >= 19) {
-            const allowedMaxMinutes = 19 * 60; // 7:00 PM in minutes
-            if (end > allowedMaxMinutes) {
-                status = 'Exceeded Overtime';
-            } else {
-                status = 'Overtime';
-            }
-        } else if (rawHours >= 8 && h2 < 19) {
-             // If they hit whole day but left before 7 PM
-             status = 'Whole Day';
+        // Status Labels
+        if (isExceeded) {
+            status = 'Exceeded Overtime';
+        } else if (h2 >= 19 && end === cutoffTime) {
+            status = 'Overtime';
+        } else if (rawHours >= 8) {
+            status = 'Whole Day';
         }
 
-        // Update the UI
-        hoursDisplay.value = finalHours.toFixed(2) + (lunchDeducted ? ' (Lunch Deducted)' : '');
+        // Update UI for Hours
+        let displayStr = finalHours.toFixed(2);
+        if (lunchDeducted) displayStr += ' (Lunch Deducted)';
+        hoursDisplay.value = displayStr;
+
+        // Update UI for Status
         if (statusDisplay) {
             statusDisplay.value = status;
-            
-            // Color code the status visually
             statusDisplay.style.fontWeight = 'bold';
             if (status === 'Whole Day') statusDisplay.style.color = 'var(--success)';
             else if (status === 'Half Day') statusDisplay.style.color = 'var(--light-blue-dark)';
             else if (status === 'Undertime') statusDisplay.style.color = 'var(--warning)';
-            else if (status === 'Overtime') statusDisplay.style.color = '#F97316'; // Orange
+            else if (status === 'Overtime') statusDisplay.style.color = '#F97316';
             else if (status === 'Exceeded Overtime') statusDisplay.style.color = 'var(--red)';
         }
     }
 
+    // Attach the event listeners so it calculates live as they type
     if (timeIn && timeOut) {
         timeIn.addEventListener('change', computeHours);
         timeOut.addEventListener('change', computeHours);
+        timeIn.addEventListener('input', computeHours);
+        timeOut.addEventListener('input', computeHours);
     }
 });

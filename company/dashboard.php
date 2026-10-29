@@ -22,13 +22,13 @@ company_layout_top('Dashboard', 'Overview of your OJT interns');
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon">🎓</div>
+        <div class="stat-icon"><i class="fas fa-user-graduate"></i></div>
         <div class="stat-label">Assigned Students</div>
         <div class="stat-value"><?= $totalStudents ?></div>
         <div class="stat-sub">active interns</div>
     </div>
     <div class="stat-card yellow">
-        <div class="stat-icon">📝</div>
+        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
         <div class="stat-label">Pending Reports</div>
         <div class="stat-value"><?= $pendingReports ?></div>
         <div class="stat-sub">needs evaluation</div>

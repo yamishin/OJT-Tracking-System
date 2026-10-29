@@ -11,10 +11,10 @@ student_layout_top('Documents', 'Submit and track your OJT documents');
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><span>✓</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span>...</span></div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
-    <div class="alert alert-error"><span>⚠</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span>...</span></div>
 <?php endif; ?>
 
 <div class="panel">
@@ -41,7 +41,7 @@ student_layout_top('Documents', 'Submit and track your OJT documents');
             </div>
 
             <div class="file-drop">
-                <div class="drop-icon">📁</div>
+                <div class="drop-icon"><i class="fas fa-cloud-upload-alt" style="font-size:40px; color:var(--light-blue);"></i></div>
                 <div class="drop-title">Click or drag file here</div>
                 <div class="drop-sub">PDF, DOC, DOCX, JPG, PNG — max 5MB</div>
                 <input type="file" name="document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
@@ -71,7 +71,9 @@ student_layout_top('Documents', 'Submit and track your OJT documents');
                 </thead>
                 <tbody>
                     <?php if (empty($documents)): ?>
-                        <tr><td colspan="5" class="empty">No documents submitted yet.</td></tr>
+                        <tr>
+                            <td colspan="5" class="empty">No documents submitted yet.</td>
+                        </tr>
                     <?php else: ?>
                         <?php foreach ($documents as $d): ?>
                             <tr>
@@ -80,6 +82,7 @@ student_layout_top('Documents', 'Submit and track your OJT documents');
                                 <td><?= date('M d, Y', strtotime($d['submitted_at'])) ?></td>
                                 <td><span class="badge <?= e($d['status']) ?>"><?= e($d['status']) ?></span></td>
                                 <td><?= e($d['remarks'] ?? '—') ?></td>
+                                <td><a href="/PractiTrack/<?= e($d['file_path']) ?>" target="_blank" style="color:var(--light-blue-dark);font-weight:600;"><i class="fas fa-file-pdf"></i> <?= e($d['file_name']) ?></a></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

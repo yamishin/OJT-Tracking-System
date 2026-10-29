@@ -19,8 +19,10 @@ function company_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title><?= e($pageTitle) ?> — PractiTrack Company</title>
         <link rel="stylesheet" href="/PractiTrack/assets/css/global.css">
-        <link rel="stylesheet" href="/PractiTrack/assets/css/student.css"> <!-- Reuse student layout styles -->
+        <link rel="stylesheet" href="/PractiTrack/assets/css/student.css">
         <link rel="stylesheet" href="/PractiTrack/assets/css/company.css">
+
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
         <style>
             .sidebar {
@@ -73,7 +75,9 @@ function company_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
             <div class="main">
                 <header class="topbar">
                     <div class="topbar-left">
-                        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">☰</button>
+                        <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+                            <i class="fas fa-bars"></i>
+                        </button>
                         <div>
                             <h2><?= e($pageTitle) ?></h2>
                             <?php if ($pageSubtitle): ?>
