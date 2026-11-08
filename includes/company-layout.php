@@ -25,22 +25,27 @@ function company_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
         <style>
+            /* Darker Blue Theme for Company */
             .sidebar {
-                background: linear-gradient(180deg, #0F766E 0%, #115E59 100%);
+                background: linear-gradient(180deg, #0277BD 0%, #01579B 100%);
             }
 
-            /* Teal */
             .sidebar-brand .logo-mark {
-                background: var(--white);
-                color: #0F766E;
+                background: var(--red);
+                color: var(--white);
             }
 
             .sidebar-menu a.active::before {
-                background: var(--white);
+                background: var(--red);
             }
 
             .sidebar-menu a.active {
-                color: #0F766E;
+                color: #0277BD;
+            }
+
+            /* Change the avatar background to match the darker blue */
+            .user-chip .avatar {
+                background: linear-gradient(135deg, #0288D1, #01579B) !important;
             }
         </style>
     </head>

@@ -27,64 +27,25 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
-<div class="panel">
-    <div class="panel-header">
-        <h3>Log Attendance</h3>
-        <div class="sub">
-            Total standard hours: <strong><?= number_format($totalHours, 2) ?></strong> 
-            <?php if ($totalOvertime > 0): ?>
-                | Overtime: <strong style="color:var(--warning);"><?= number_format($totalOvertime, 2) ?></strong>
-            <?php endif; ?>
+<!-- Header Panel with Log Time Button -->
+<div class="panel" style="margin-bottom: 24px; background: linear-gradient(135deg, var(--light-blue-dark), var(--light-blue)); color: white; border: none;">
+    <div class="panel-body" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2 style="font-family: var(--font-heading); font-size: 22px; margin-bottom: 4px;">Ready to log your hours?</h2>
+            <p style="font-size: 14px; opacity: 0.9;">
+                Standard Hours: <strong><?= number_format($totalHours, 2) ?></strong> 
+                <?php if ($totalOvertime > 0): ?>
+                    | Overtime: <strong style="color: #FFEDD5;"><?= number_format($totalOvertime, 2) ?></strong>
+                <?php endif; ?>
+            </p>
         </div>
-    </div>
-    <div class="panel-body">
-        <form action="/PractiTrack/php/student/attendance-handler.php" method="POST">
-            <input type="hidden" name="action" value="log_attendance">
-            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-
-            <div class="form-grid">
-                <div class="field full">
-                    <label>Date</label>
-                    <input type="date" name="log_date" value="<?= date('Y-m-d') ?>" required>
-                </div>
-                
-                <div class="field" style="border-right: 1px solid var(--gray-200); padding-right: 10px;">
-                    <label>Time In</label>
-                    <input type="time" id="time_in" name="time_in" required>
-                </div>
-                <div class="field" style="padding-left: 10px;">
-                    <label>Time Out</label>
-                    <input type="time" id="time_out" name="time_out" required>
-                </div>
-
-                <div class="field">
-                    <label>Computed Hours (Standard)</label>
-                    <input type="text" id="total_hours_display" readonly value="0.00" style="background:var(--gray-100); font-weight:bold; color:var(--light-blue-dark);">
-                </div>
-                <div class="field">
-                    <label>Auto-Status</label>
-                    <input type="text" id="status_display" readonly value="Waiting..." style="background:var(--gray-100); border:none;">
-                </div>
-                
-                <div class="field full">
-                    <label>Punctuality (Standard is 8:00 AM)</label>
-                    <input type="text" id="punctuality_display" readonly value="—" style="background:var(--gray-100); border:none;">
-                </div>
-
-                <div class="field full">
-                    <label>Remarks (optional)</label>
-                    <input type="text" name="remarks" placeholder="e.g., Worked on documentation">
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Log Attendance</button>
-            <div class="form-hint" style="margin-top:10px;">
-                <em>* 8+ hours automatically deducts 1 hour for lunch. Max standard time is 7:00 PM.</em>
-            </div>
-        </form>
+        <button type="button" class="btn btn-primary" onclick="openLogModal()" style="background: var(--white); color: var(--light-blue-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            <i class="fas fa-clock"></i> Log Time
+        </button>
     </div>
 </div>
 
+<!-- Attendance History Table -->
 <div class="panel">
     <div class="panel-header">
         <h3>Attendance History</h3>
@@ -105,7 +66,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                 </thead>
                 <tbody>
                     <?php if (empty($records)): ?>
-                        <tr><td colspan="6" class="empty">No attendance yet. Log your first entry above.</td></tr>
+                        <tr><td colspan="6" class="empty">No attendance yet. Click "Log Time" to start.</td></tr>
                     <?php else: ?>
                         <?php foreach ($records as $r): ?>
                             <tr>
@@ -115,7 +76,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                                     <span style="margin:0 8px; color:var(--gray-400);">→</span>
                                     <span style="color:var(--gray-600);"><?= $r['time_out'] ? date('h:i A', strtotime($r['time_out'])) : '—' ?></span>
                                 </td>
-                                <!-- ONLY SHOW STANDARD HOURS IN TABLE -->
                                 <td><strong><?= number_format((float)$r['total_hours'], 2) ?></strong></td>
                                 <td>
                                     <span class="badge" style="background:
@@ -153,14 +113,80 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     </div>
 </div>
 
-<!-- ENHANCED MODAL POPUP -->
+<!-- ========================================== -->
+<!-- LOG TIME MODAL -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="logTimeModal">
+    <div class="modal-box" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-clock"></i> Log Attendance</h3>
+            <button class="modal-close" onclick="closeLogModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <form action="/PractiTrack/php/student/attendance-handler.php" method="POST">
+            <input type="hidden" name="action" value="log_attendance">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+
+            <div class="modal-body">
+                <div class="field">
+                    <label>Date</label>
+                    <input type="date" name="log_date" value="<?= date('Y-m-d') ?>" required>
+                </div>
+                
+                <div class="form-grid" style="gap:12px;">
+                    <div class="field">
+                        <label>Time In</label>
+                        <input type="time" id="time_in" name="time_in" required>
+                    </div>
+                    <div class="field">
+                        <label>Time Out</label>
+                        <input type="time" id="time_out" name="time_out" required>
+                    </div>
+                </div>
+
+                <div class="form-grid" style="gap:12px; margin-top: 12px;">
+                    <div class="field">
+                        <label>Hours (Standard)</label>
+                        <input type="text" id="total_hours_display" readonly value="0.00" style="background:var(--gray-100); font-weight:bold; color:var(--light-blue-dark);">
+                    </div>
+                    <div class="field">
+                        <label>Punctuality</label>
+                        <input type="text" id="punctuality_display" readonly value="—" style="background:var(--gray-100); font-weight:bold;">
+                    </div>
+                </div>
+
+                <div class="field" style="margin-top: 12px;">
+                    <label>Auto-Status</label>
+                    <input type="text" id="status_display" readonly value="Waiting..." style="background:var(--gray-100); font-weight:bold;">
+                </div>
+
+                <div class="field" style="margin-top: 12px;">
+                    <label>Remarks (optional)</label>
+                    <input type="text" name="remarks" placeholder="e.g., Worked on documentation">
+                </div>
+                
+                <div class="form-hint" style="margin-top:10px;">
+                    <em>* 8+ hours automatically deducts 1 hour for lunch. Max standard time is 7:00 PM.</em>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm" onclick="closeLogModal()" style="background:var(--gray-200); color:var(--gray-800);">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-primary">Submit Log</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- VIEW DETAILS MODAL -->
+<!-- ========================================== -->
 <div class="modal-overlay" id="attendanceModal">
     <div class="modal-box">
-        <div class="modal-header">
-            <h3><i class="fas fa-clipboard-list"></i> Attendance Details</h3>
-            <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        <div class="modal-header" style="background:var(--light-blue-light); border-bottom:2px solid var(--light-blue);">
+            <h3 style="color:var(--light-blue-dark);"><i class="fas fa-clipboard-list"></i> Attendance Details</h3>
+            <button class="modal-close" onclick="closeModal('attendanceModal')"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="padding: 0;">
             <div class="detail-row">
                 <span class="detail-label">Date Logged</span>
                 <span class="detail-value" id="m_date"></span>
@@ -177,10 +203,9 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                 <span class="detail-label">Standard Hours</span>
                 <span class="detail-value" id="m_standard_hours" style="color:var(--light-blue-dark);"></span>
             </div>
-            <!-- OVERTIME ROW (Hidden by default if 0) -->
-            <div class="detail-row overtime-row" id="m_overtime_row" style="display:none;">
-                <span class="detail-label">Overtime Hours</span>
-                <span class="detail-value" id="m_overtime_hours"></span>
+            <div class="detail-row overtime-row" id="m_overtime_row" style="display:none; background:#FFF8E1; border-left:4px solid var(--warning);">
+                <span class="detail-label" style="color:#B26A00;">Overtime Hours</span>
+                <span class="detail-value" id="m_overtime_hours" style="color:#B26A00; font-size:16px;"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Status</span>
@@ -192,13 +217,25 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-sm" onclick="closeModal()" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
+            <button type="button" class="btn btn-sm" onclick="closeModal('attendanceModal')" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
         </div>
     </div>
 </div>
 
 <script>
-    const modal = document.getElementById('attendanceModal');
+    // --- Log Time Modal Logic ---
+    const logModal = document.getElementById('logTimeModal');
+    
+    function openLogModal() {
+        logModal.classList.add('open');
+    }
+
+    function closeLogModal() {
+        logModal.classList.remove('open');
+    }
+
+    // --- View Details Modal Logic ---
+    const viewModal = document.getElementById('attendanceModal');
 
     function viewAttendance(data) {
         const formatTime = (timeStr) => {
@@ -220,11 +257,8 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
         document.getElementById('m_punctuality').textContent = data.punctuality || 'On Time';
         document.getElementById('m_status').textContent = data.status;
         document.getElementById('m_remarks').textContent = data.remarks || 'No remarks provided.';
-
-        // Standard Hours
         document.getElementById('m_standard_hours').textContent = parseFloat(data.total_hours).toFixed(2) + ' hours';
 
-        // Overtime Logic for Modal
         const otHours = parseFloat(data.overtime_hours || 0);
         const otRow = document.getElementById('m_overtime_row');
         
@@ -235,15 +269,17 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             otRow.style.display = 'none';
         }
 
-        modal.classList.add('open');
+        viewModal.classList.add('open');
     }
 
-    function closeModal() {
-        modal.classList.remove('open');
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
     }
 
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
+    // Close on clicking outside
+    window.addEventListener('click', (e) => {
+        if (e.target === logModal) closeLogModal();
+        if (e.target === viewModal) closeModal('attendanceModal');
     });
 </script>
 

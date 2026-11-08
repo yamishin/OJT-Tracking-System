@@ -17,11 +17,9 @@ if ($action === 'create_user') {
     $email = trim($_POST['email']);
     $orgName = trim($_POST['org_name'] ?? '');
     
-    // Default generated password
     $generatedPassword = 'PractiTrack2026';
     $hash = password_hash($generatedPassword, PASSWORD_DEFAULT);
 
-    // Check if email exists
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
@@ -37,7 +35,19 @@ if ($action === 'create_user') {
         $userId = $pdo->lastInsertId();
 
         if ($role === 'company') {
-            $pdo->prepare("INSERT INTO company_profiles (user_id, company_name) VALUES (?, ?)")->execute([$userId, $orgName]);
+            $industry = trim($_POST['industry'] ?? '');
+            $positions = trim($_POST['available_positions'] ?? '');
+            $desc = trim($_POST['description'] ?? '');
+            $address = trim($_POST['address'] ?? '');
+            $website = trim($_POST['website'] ?? '');
+            $hrContact = trim($_POST['hr_contact_person'] ?? '');
+            $social = trim($_POST['social_media'] ?? '');
+
+            $stmt = $pdo->prepare("INSERT INTO company_profiles 
+                (user_id, company_name, industry, available_positions, description, address, website, hr_contact_person, social_media) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$userId, $orgName, $industry, $positions, $desc, $address, $website, $hrContact, $social]);
+
         } elseif ($role === 'school') {
             $pdo->prepare("INSERT INTO school_profiles (user_id, school_name) VALUES (?, ?)")->execute([$userId, $orgName]);
         } elseif ($role === 'admin') {
@@ -45,7 +55,6 @@ if ($action === 'create_user') {
         }
 
         $pdo->commit();
-        
         set_flash('success', "Account created successfully!<br><br><strong>Email:</strong> $email<br><strong>Password:</strong> $generatedPassword<br><br><em>Please copy this password and give it to the user.</em>");
         
     } catch (Exception $e) {

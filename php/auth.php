@@ -29,8 +29,14 @@ if ($action === 'login_student') {
     $stmt->execute([$studentNo]);
     $user = $stmt->fetch();
 
-    if (!$user || !password_verify($password, $user['password_hash'])) {
+        if (!$user || !password_verify($password, $user['password_hash'])) {
         set_flash('error', 'Invalid USN or password.');
+        redirect('/PractiTrack/login.php');
+    }
+
+    // CHECK IF ACCOUNT IS DEACTIVATED
+    if (!$user['is_active']) {
+        set_flash('error', 'Your account has been deactivated by the Administrator. Please contact your school coordinator.');
         redirect('/PractiTrack/login.php');
     }
 
@@ -97,78 +103,13 @@ if ($action === 'login_staff') {
 }
 
 // ============================================
-// REGISTER (Students only)
+// REGISTER (Disabled)
 // ============================================
 if ($action === 'register') {
-    if (!verify_csrf($_POST['csrf_token'] ?? '')) {
-        set_flash('error', 'Invalid session.');
-        redirect('/PractiTrack/register.php');
-    }
-
-    $firstName = trim($_POST['first_name'] ?? '');
-    $lastName  = trim($_POST['last_name']  ?? '');
-    $email     = trim($_POST['email']      ?? '');
-    $password  = $_POST['password']        ?? '';
-    $confirm   = $_POST['confirm_password']?? '';
-    $studentNo = trim($_POST['student_no'] ?? '');
-
-    $errors = [];
-    if ($firstName === '' || $lastName === '') $errors[] = 'Names are required.';
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Invalid email.';
-    if (strlen($password) < 8) $errors[] = 'Password must be 8+ chars.';
-    if ($password !== $confirm) $errors[] = 'Passwords do not match.';
-    if ($studentNo === '' || !preg_match('/^\d{1,11}$/', $studentNo)) $errors[] = 'Valid USN is required.';
-
-    if (empty($errors)) {
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) $errors[] = 'Email already registered.';
-        
-        $stmt = $pdo->prepare("SELECT id FROM student_profiles WHERE student_no = ?");
-        $stmt->execute([$studentNo]);
-        if ($stmt->fetch()) $errors[] = 'USN already registered.';
-    }
-
-    if ($errors) {
-        $_SESSION['old'] = $_POST;
-        set_flash('error', implode(' ', $errors));
-        redirect('/PractiTrack/register.php');
-    }
-
-    try {
-        $pdo->beginTransaction();
-        $hash = password_hash($password, PASSWORD_DEFAULT);
-
-        $stmt = $pdo->prepare("INSERT INTO users (role, first_name, last_name, email, password_hash) VALUES ('student', ?, ?, ?, ?)");
-        $stmt->execute([$firstName, $lastName, $email, $hash]);
-        $userId = (int)$pdo->lastInsertId();
-
-        $stmt = $pdo->prepare("INSERT INTO student_profiles (user_id, student_no) VALUES (?, ?)");
-        $stmt->execute([$userId, $studentNo]);
-
-        $pdo->commit();
-
-        // Auto-login the student
-        session_write_close();
-        session_name('PRACTITRACK_STUDENT');
-        session_start();
-        session_regenerate_id(true);
-
-        $_SESSION['user_id'] = $userId;
-        $_SESSION['role']    = 'student';
-        $_SESSION['name']    = $firstName . ' ' . $lastName;
-        $_SESSION['email']   = $email;
-
-        unset($_SESSION['old']);
-        set_flash('success', 'Welcome! Account created.');
-        redirect('/PractiTrack/student/dashboard.php');
-
-    } catch (Exception $ex) {
-        $pdo->rollBack();
-        set_flash('error', 'Registration failed.');
-        redirect('/PractiTrack/register.php');
-    }
+    set_flash('error', 'Public registration is disabled. Please contact the Administrator.');
+    redirect('/PractiTrack/login.php');
 }
 
+// Catch-all fallback
 set_flash('error', 'Invalid request.');
 redirect('/PractiTrack/login.php');

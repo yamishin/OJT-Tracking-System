@@ -50,7 +50,7 @@ school_layout_top('Student Monitoring', 'View and track all students in the prog
                                     <div style="font-size:12px; font-weight:600; margin-bottom:4px;"><?= $progress ?>%</div>
                                     <div class="progress-block" style="margin:0;">
                                         <div class="pb-bar" style="height:6px;">
-                                            <div class="pb-fill" style="width: <?= $progress ?>%; background:#7C3AED;"></div>
+                                            <div class="pb-fill" style="width: <?= $progress ?>%;"></div>
                                         </div>
                                     </div>
                                 </td>

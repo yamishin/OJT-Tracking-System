@@ -45,6 +45,9 @@ function student_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
                     <a href="/PractiTrack/student/dashboard.php" class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">
                         <span class="icon"><i class="fas fa-home"></i></span> Dashboard
                     </a>
+                    <a href="/PractiTrack/student/companies.php" class="<?= $currentPage === 'companies.php' ? 'active' : '' ?>">
+                        <span class="icon"><i class="fas fa-building"></i></span> Find Company
+                    </a>
                     <a href="/PractiTrack/student/documents.php" class="<?= $currentPage === 'documents.php' ? 'active' : '' ?>">
                         <span class="icon"><i class="fas fa-folder-open"></i></span> Documents
                     </a>

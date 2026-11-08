@@ -20,17 +20,6 @@ if ($student['company_id']) {
     $stmt->execute([$student['company_id']]);
     $company = $stmt->fetch();
 }
-// 4. Fetch Documents
-$stmt = $pdo->prepare("SELECT * FROM documents WHERE student_id = ? ORDER BY submitted_at DESC");
-$stmt->execute([$studentId]);
-$documents = $stmt->fetchAll();
-
-// 👇 ADD THIS NEW BLOCK HERE 👇
-// Fetch Attendance
-$stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY log_date DESC");
-$stmt->execute([$studentId]);
-$attendance = $stmt->fetchAll();
-// 👆 END OF NEW BLOCK 👆
 
 // 3. Calculate Progress
 $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ?");
@@ -44,12 +33,17 @@ $stmt = $pdo->prepare("SELECT * FROM documents WHERE student_id = ? ORDER BY sub
 $stmt->execute([$studentId]);
 $documents = $stmt->fetchAll();
 
-// 5. Fetch Weekly Reports
+// 5. Fetch Attendance
+$stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY log_date DESC");
+$stmt->execute([$studentId]);
+$attendance = $stmt->fetchAll();
+
+// 6. Fetch Weekly Reports
 $stmt = $pdo->prepare("SELECT * FROM weekly_reports WHERE student_id = ? ORDER BY week_start DESC");
 $stmt->execute([$studentId]);
 $reports = $stmt->fetchAll();
 
-// 6. Fetch Final Evaluation
+// 7. Fetch Final Evaluation
 $stmt = $pdo->prepare("SELECT * FROM final_evaluations WHERE student_id = ?");
 $stmt->execute([$studentId]);
 $finalEval = $stmt->fetch();
@@ -58,11 +52,14 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><span>✓</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= e($msg) ?></span></div>
+<?php endif; ?>
+<?php if ($msg = get_flash('error')): ?>
+    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
 <div style="margin-bottom: 20px;">
-    <a href="/PractiTrack/school/students.php" style="color:var(--gray-600); font-size:14px; font-weight:600;">← Back to Student List</a>
+    <a href="/PractiTrack/school/students.php" style="color:var(--gray-600); font-size:14px; font-weight:600;"><i class="fas fa-arrow-left"></i> Back to Student List</a>
 </div>
 
 <div class="grid-2">
@@ -75,7 +72,7 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
             <p style="margin-bottom:8px;"><strong>Course:</strong> <?= e($student['course'] ?? '—') ?></p>
             <p style="margin-bottom:8px;"><strong>Email:</strong> <?= e($student['email']) ?></p>
             <hr style="margin:16px 0; border:0; border-top:1px solid var(--gray-200);">
-            <p style="margin-bottom:8px;"><strong>Assigned Company:</strong> <?= $company ? e($company['company_name']) : '<em style="color:var(--gray-400);">Not assigned yet</em>' ?></p>
+            <p style="margin-bottom:8px;"><strong>Assigned Company:</strong> <?= $company ? '<span style="color:var(--light-blue-dark); font-weight:bold;">'.e($company['company_name']).'</span>' : '<em style="color:var(--gray-400);">Not assigned yet</em>' ?></p>
         </div>
     </div>
 
@@ -89,14 +86,15 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
                     <span><?= number_format($renderedHours, 1) ?> / <?= $requiredHours ?> hrs</span>
                 </div>
                 <div class="pb-bar" style="height:16px;">
-                    <div class="pb-fill" style="width: <?= $progressPercent ?>%; background:#7C3AED;"></div>
+                    <!-- Fixed $progress to $progressPercent and removed the purple background -->
+                    <div class="pb-fill" data-width="<?= $progressPercent ?>%" style="width: <?= $progressPercent ?>%;"></div>
                 </div>
             </div>
-            <p style="text-align: right; font-weight: 700; color: #7C3AED; margin-top: 5px;"><?= $progressPercent ?>% Complete</p>
+            <p style="text-align: right; font-weight: 700; color: var(--light-blue-dark); margin-top: 5px;"><?= $progressPercent ?>% Complete</p>
 
             <?php if ($finalEval): ?>
                 <div class="alert alert-success" style="margin-top: 20px; margin-bottom:0; padding: 12px;">
-                    <span>🏆</span>
+                    <i class="fas fa-trophy" style="font-size:20px; color:var(--success);"></i>
                     <div>
                         <strong>Final Company Score: <?= $finalEval['score'] ?> / 100</strong>
                     </div>
@@ -131,7 +129,7 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
                         <?php foreach ($documents as $d): ?>
                             <tr>
                                 <td><strong><?= e($d['doc_type']) ?></strong></td>
-                                <td><a href="/PractiTrack/<?= e($d['file_path']) ?>" target="_blank" style="color:#7C3AED;font-weight:600;">📄 View File</a></td>
+                                <td><a href="/PractiTrack/<?= e($d['file_path']) ?>" target="_blank" style="color:var(--light-blue-dark);font-weight:600;"><i class="fas fa-file-pdf"></i> View File</a></td>
                                 <td><?= date('M d, Y', strtotime($d['submitted_at'])) ?></td>
                                 <td><span class="badge <?= e($d['status']) ?>"><?= e($d['status']) ?></span></td>
                                 <td>
@@ -246,6 +244,6 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
             </table>
         </div>
     </div>
-</div>
+</div>  
 
 <?php school_layout_bottom(); ?>

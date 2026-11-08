@@ -472,7 +472,6 @@
     .user-chip .info { display: none; }
 }
 
-
 /* ==========================================
    MODAL (Popup) STYLES
    ========================================== */
@@ -481,7 +480,7 @@
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(15, 23, 42, 0.6);
     backdrop-filter: blur(4px);
-    display: none; /* Hidden by default */
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 9999;
@@ -495,9 +494,12 @@
 }
 
 .modal-box {
+    width: 95%;
+    max-width: 550px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     background: var(--white);
-    width: 100%;
-    max-width: 500px;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     transform: translateY(20px);
@@ -511,7 +513,8 @@
 
 .modal-header {
     padding: 20px 24px;
-    border-bottom: 1px solid var(--gray-200);
+    background: var(--light-blue-light);
+    border-bottom: 2px solid var(--light-blue);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -520,7 +523,10 @@
 .modal-header h3 {
     font-family: var(--font-heading);
     font-size: 18px;
-    color: var(--gray-800);
+    color: var(--light-blue-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .modal-close {
@@ -532,70 +538,17 @@
     line-height: 1;
 }
 
-.modal-close:hover {
-    color: var(--red);
-}
+.modal-close:hover { color: var(--red); }
 
+/* Form Modals (Log Time) */
 .modal-body {
     padding: 24px;
+    overflow-y: auto;
 }
 
-.detail-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px dashed var(--gray-200);
-    font-size: 14px;
-}
-
-.detail-row:last-child {
-    border-bottom: none;
-}
-
-.detail-label {
-    color: var(--gray-600);
-    font-weight: 500;
-}
-
-.detail-value {
-    font-weight: 700;
-    color: var(--gray-800);
-    text-align: right;
-    max-width: 60%;
-}
-
-.modal-footer {
-    padding: 16px 24px;
-    background: var(--gray-100);
-    text-align: right;
-}
-
-
-/* FONT AWESOME */
-.stat-icon i, 
-.topbar-icon i, 
-.sidebar-menu a .icon i {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-
-/* Enhanced Modal Design */
-.modal-header {
-    background: var(--light-blue-light);
-    border-bottom: 2px solid var(--light-blue);
-}
-
-.modal-header h3 {
-    color: var(--light-blue-dark);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.modal-body {
-    padding: 0; /* Remove padding so detail rows touch edges */
+/* View Details Modals (Attendance Details) */
+.modal-body.p-0 {
+    padding: 0;
 }
 
 .detail-row {
@@ -619,6 +572,16 @@
     font-weight: 700;
     color: var(--gray-800);
     text-align: right;
+    max-width: 60%;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    background: var(--gray-100);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid var(--gray-200);
 }
 
 /* Overtime Highlight */
@@ -628,3 +591,12 @@
 }
 .overtime-row .detail-label { color: #B26A00; }
 .overtime-row .detail-value { color: #B26A00; font-size: 16px; }
+
+/* FONT AWESOME */
+.stat-icon i, 
+.topbar-icon i, 
+.sidebar-menu a .icon i {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

@@ -9,7 +9,10 @@ admin_layout_top('Manage Accounts', 'Create and view Company, School, and Admin 
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success" style="font-size: 16px;"><span>🔑</span><span><?= $msg ?></span></div>
+    <div class="alert alert-success" style="font-size: 15px;">
+    <i class="fas fa-key" style="font-size:20px; margin-right:8px; color:var(--success);"></i>
+    <span><?= $msg ?></span>
+</div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
     <div class="alert alert-error"><span>⚠</span><span><?= e($msg) ?></span></div>
@@ -20,7 +23,7 @@ admin_layout_top('Manage Accounts', 'Create and view Company, School, and Admin 
     <div class="panel">
         <div class="panel-header"><h3>Create New Account</h3></div>
         <div class="panel-body">
-            <form action="/PractiTrack/php/admin/user-handler.php" method="POST">
+                        <form action="/PractiTrack/php/admin/user-handler.php" method="POST">
                 <input type="hidden" name="action" value="create_user">
                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                 
@@ -54,7 +57,45 @@ admin_layout_top('Manage Accounts', 'Create and view Company, School, and Admin 
                     <input type="text" name="org_name" id="orgInput" required>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="background:var(--gray-800);">Generate Account</button>
+                <!-- Company Specific Fields -->
+                <div id="companyDetails" style="display:none; border-top: 1px dashed #ccc; padding-top: 16px; margin-top: 16px;">
+                    <h4 style="margin-bottom:12px; color:var(--gray-800); font-size:14px;">Company Details</h4>
+                    
+                    <div class="field">
+                        <label>Industry</label>
+                        <input type="text" name="industry" placeholder="e.g. Information Technology">
+                    </div>
+                    <div class="field">
+                        <label>Available Positions</label>
+                        <input type="text" name="available_positions" placeholder="e.g. Web Developer, IT Support">
+                    </div>
+                    <div class="field">
+                        <label>Description / About</label>
+                        <textarea name="description" placeholder="Brief description of the company..." style="min-height: 80px;"></textarea>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Address</label>
+                            <input type="text" name="address">
+                        </div>
+                        <div class="field">
+                            <label>Website</label>
+                            <input type="text" name="website">
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Contact Person / HR</label>
+                            <input type="text" name="hr_contact_person">
+                        </div>
+                        <div class="field">
+                            <label>Social Media / Email</label>
+                            <input type="text" name="social_media">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="background:var(--gray-800); margin-top:20px;">Generate Account</button>
             </form>
         </div>
     </div>
@@ -96,6 +137,28 @@ admin_layout_top('Manage Accounts', 'Create and view Company, School, and Admin 
         } else {
             document.getElementById('orgField').style.display = 'block';
             orgInput.required = true;
+        }
+    });
+</script>
+
+<!-- TOGGLE THE FIELDS -->
+<script>
+    document.getElementById('roleSelect').addEventListener('change', function() {
+        const companyDetails = document.getElementById('companyDetails');
+        const orgInput = document.getElementById('orgInput');
+        
+        if (this.value === 'admin') {
+            document.getElementById('orgField').style.display = 'none';
+            orgInput.required = false;
+            companyDetails.style.display = 'none';
+        } else if (this.value === 'company') {
+            document.getElementById('orgField').style.display = 'block';
+            orgInput.required = true;
+            companyDetails.style.display = 'block';
+        } else {
+            document.getElementById('orgField').style.display = 'block';
+            orgInput.required = true;
+            companyDetails.style.display = 'none';
         }
     });
 </script>

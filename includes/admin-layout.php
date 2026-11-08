@@ -23,17 +23,26 @@ function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
 
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
+            /* Dark Slate Theme for Admin */
             .sidebar {
                 background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
             }
 
-            /* Dark Slate */
             .sidebar-brand .logo-mark {
                 background: var(--red);
+                color: var(--white);
             }
 
             .sidebar-menu a.active::before {
                 background: var(--red);
+            }
+
+            .sidebar-menu a.active {
+                color: #1E293B;
+            }
+
+            .user-chip .avatar {
+                background: #1E293B !important;
             }
         </style>
     </head>
