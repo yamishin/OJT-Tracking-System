@@ -29,7 +29,9 @@ student_layout_top('Notifications', 'Your recent alerts and updates');
             <ul class="notif-list">
                 <?php foreach ($notifs as $n): ?>
                     <li class="notif-item">
-                        <div class="n-icon">🔔</div>
+                        <div class="n-icon">
+                            <i class="fa-solid fa-bell"></i>
+                        </div>
                         <div class="n-body">
                             <div class="n-title"><?= e($n['title']) ?></div>
                             <div class="n-message"><?= e($n['message']) ?></div>

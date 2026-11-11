@@ -246,6 +246,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    flex-wrap: wrap;
+}
+.panel-header .field {
+    margin-bottom: 0;
 }
 .panel-header h3 {
     font-family: var(--font-heading);
@@ -496,15 +500,15 @@
 .modal-box {
     width: 95%;
     max-width: 550px;
-    max-height: 90vh;
+    max-height: 85vh; 
     display: flex;
-    flex-direction: column;
+    flex-direction: column; 
     background: var(--white);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     transform: translateY(20px);
     transition: transform 0.3s ease;
-    overflow: hidden;
+    overflow: hidden; 
 }
 
 .modal-overlay.open .modal-box {
@@ -544,11 +548,27 @@
 .modal-body {
     padding: 24px;
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 /* View Details Modals (Attendance Details) */
 .modal-body.p-0 {
     padding: 0;
+}
+/* Sleek scrollbar for modals */
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+.modal-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.modal-body::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+}
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .detail-row {
@@ -582,6 +602,7 @@
     justify-content: flex-end;
     gap: 10px;
     border-top: 1px solid var(--gray-200);
+    flex-shrink: 0; 
 }
 
 /* Overtime Highlight */

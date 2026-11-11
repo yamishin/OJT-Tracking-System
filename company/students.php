@@ -3,12 +3,13 @@ require_once __DIR__ . '/../includes/company-layout.php';
 
 $companyId = $_SESSION['user_id'];
 
+// Fetch only ACCEPTED students for this company
 $stmt = $pdo->prepare("
     SELECT u.id, u.first_name, u.last_name, u.email, sp.student_no, sp.course, sp.required_hours,
     (SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = u.id) as rendered_hours
     FROM users u
     JOIN student_profiles sp ON sp.user_id = u.id
-    WHERE sp.company_id = ?
+    WHERE sp.company_id = ? AND sp.application_status = 'accepted'
     ORDER BY u.last_name ASC
 ");
 $stmt->execute([$companyId]);
@@ -57,7 +58,9 @@ company_layout_top('My Students', 'Manage and evaluate your assigned interns');
                                     </div>
                                 </td>
                                 <td>
-                                    <a href="/PractiTrack/company/student-view.php?id=<?= $s['id'] ?>" class="btn btn-sm btn-outline">View & Evaluate</a>
+                                    <a href="/PractiTrack/company/student-view.php?id=<?= $s['id'] ?>" class="btn btn-sm" style="background:#E0F2FE; color:#0284C7;">
+                                        <i class="fas fa-search"></i> Evaluate
+                                    </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

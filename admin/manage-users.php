@@ -30,7 +30,6 @@ admin_layout_top('Manage Accounts', 'Create and view Company, School, and Admin 
                 <div class="field">
                     <label>Account Type</label>
                     <select name="role" id="roleSelect" required>
-                        <option value="company">Company (OJT Host)</option>
                         <option value="school">School (Instructor/Coordinator)</option>
                         <option value="admin">Administrator</option>
                     </select>

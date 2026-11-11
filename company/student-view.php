@@ -4,8 +4,8 @@ require_once __DIR__ . '/../includes/company-layout.php';
 $companyId = $_SESSION['user_id'];
 $studentId = (int)($_GET['id'] ?? 0);
 
-// Verify this student belongs to this company
-$stmt = $pdo->prepare("SELECT u.*, sp.* FROM users u JOIN student_profiles sp ON sp.user_id = u.id WHERE u.id = ? AND sp.company_id = ?");
+// Verify student belongs to this company and is accepted
+$stmt = $pdo->prepare("SELECT u.*, sp.* FROM users u JOIN student_profiles sp ON sp.user_id = u.id WHERE u.id = ? AND sp.company_id = ? AND sp.application_status = 'accepted'");
 $stmt->execute([$studentId, $companyId]);
 $student = $stmt->fetch();
 
@@ -19,31 +19,40 @@ $stmt = $pdo->prepare("SELECT * FROM weekly_reports WHERE student_id = ? ORDER B
 $stmt->execute([$studentId]);
 $reports = $stmt->fetchAll();
 
-// Fetch final evaluation if exists
+// Fetch documents
+$stmt = $pdo->prepare("SELECT * FROM documents WHERE student_id = ? ORDER BY submitted_at DESC");
+$stmt->execute([$studentId]);
+$documents = $stmt->fetchAll();
+
+// Fetch final evaluation
 $stmt = $pdo->prepare("SELECT * FROM final_evaluations WHERE student_id = ? AND company_id = ?");
 $stmt->execute([$studentId, $companyId]);
 $finalEval = $stmt->fetch();
 
-company_layout_top('Student Profile', 'Evaluate intern: ' . $student['first_name'] . ' ' . $student['last_name']);
+company_layout_top('Student Evaluation', 'Review and evaluate intern');
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><span>✓</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
-    <div class="alert alert-error"><span>⚠</span><span><?= e($msg) ?></span></div>
+    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
+
+<div style="margin-bottom: 20px;">
+    <a href="/PractiTrack/company/students.php" style="color:var(--gray-600); font-size:14px; font-weight:600;"><i class="fas fa-arrow-left"></i> Back to Students</a>
+</div>
 
 <div class="grid-2">
     <!-- Student Info -->
     <div class="panel">
         <div class="panel-header"><h3>Intern Details</h3></div>
         <div class="panel-body">
-            <p><strong>Name:</strong> <?= e($student['first_name'] . ' ' . $student['last_name']) ?></p>
-            <p><strong>USN:</strong> <?= e($student['student_no']) ?></p>
-            <p><strong>Course:</strong> <?= e($student['course']) ?></p>
-            <p><strong>Email:</strong> <?= e($student['email']) ?></p>
-            <p><strong>Required Hours:</strong> <?= $student['required_hours'] ?></p>
+            <p style="margin-bottom:8px;"><strong>Name:</strong> <?= e($student['first_name'] . ' ' . $student['last_name']) ?></p>
+            <p style="margin-bottom:8px;"><strong>USN:</strong> <?= e($student['student_no']) ?></p>
+            <p style="margin-bottom:8px;"><strong>Course:</strong> <?= e($student['course']) ?></p>
+            <p style="margin-bottom:8px;"><strong>Email:</strong> <?= e($student['email']) ?></p>
+            <p style="margin-bottom:8px;"><strong>Required Hours:</strong> <?= $student['required_hours'] ?></p>
         </div>
     </div>
 
@@ -52,9 +61,12 @@ company_layout_top('Student Profile', 'Evaluate intern: ' . $student['first_name
         <div class="panel-header"><h3>Final Evaluation</h3></div>
         <div class="panel-body">
             <?php if ($finalEval): ?>
-                <div class="alert alert-success">
-                    <span>✅</span>
-                    <span><strong>Completed!</strong> Score: <?= $finalEval['score'] ?>/100<br><?= e($finalEval['remarks']) ?></span>
+                <div class="alert alert-success" style="margin-bottom:0; padding: 20px;">
+                    <i class="fas fa-trophy" style="font-size:30px; color:var(--success); margin-right:15px;"></i>
+                    <div>
+                        <strong style="font-size:18px;">Score: <?= $finalEval['score'] ?> / 100</strong><br>
+                        <p style="margin-top:8px; font-size:14px;">"<?= nl2br(e($finalEval['remarks'])) ?>"</p>
+                    </div>
                 </div>
             <?php else: ?>
                 <form action="/PractiTrack/php/company/evaluate-handler.php" method="POST">
@@ -70,9 +82,45 @@ company_layout_top('Student Profile', 'Evaluate intern: ' . $student['first_name
                         <label>Remarks / Feedback</label>
                         <textarea name="remarks" placeholder="Overall performance..." required></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="background:var(--company-primary);">Submit Final Evaluation</button>
+                    <button type="submit" class="btn btn-primary">Submit Final Evaluation</button>
                 </form>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Document Tracking -->
+<div class="panel">
+    <div class="panel-header">
+        <h3>Student Documents</h3>
+        <div class="sub">View submitted requirements</div>
+    </div>
+    <div class="panel-body no-pad">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Document Type</th>
+                        <th>File</th>
+                        <th>Date Submitted</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($documents)): ?>
+                        <tr><td colspan="4" class="empty">No documents submitted yet.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($documents as $d): ?>
+                            <tr>
+                                <td><strong><?= e($d['doc_type']) ?></strong></td>
+                                <td><a href="/PractiTrack/<?= e($d['file_path']) ?>" target="_blank" style="color:var(--light-blue-dark);font-weight:600;"><i class="fas fa-file-pdf"></i> View File</a></td>
+                                <td><?= date('M d, Y', strtotime($d['submitted_at'])) ?></td>
+                                <td><span class="badge <?= e($d['status']) ?>"><?= e($d['status']) ?></span></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -80,7 +128,8 @@ company_layout_top('Student Profile', 'Evaluate intern: ' . $student['first_name
 <!-- Weekly Reports Review -->
 <div class="panel">
     <div class="panel-header">
-        <h3>Submitted Reports</h3>
+        <h3>Weekly & Monthly Reports</h3>
+        <div class="sub">Evaluate student submissions</div>
     </div>
     <div class="panel-body no-pad">
         <div class="table-wrap">

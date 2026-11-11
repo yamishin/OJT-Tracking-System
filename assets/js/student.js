@@ -32,10 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDisplay = document.getElementById('status_display');
     const punctualityDisplay = document.getElementById('punctuality_display');
 
-    function computeHours() {
+       function computeHours() {
         if (!timeIn || !timeOut || !hoursDisplay) return;
 
-        // If either time is empty, reset the displays
         if (!timeIn.value || !timeOut.value) {
             hoursDisplay.value = '0.00';
             if (statusDisplay) statusDisplay.value = 'Waiting for Time Out...';
@@ -48,18 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const [h2, m2] = timeOut.value.split(':').map(Number);
 
         // --- PUNCTUALITY LOGIC ---
-        // Standard is 8:00 AM (8 * 60 = 480 minutes)
-        const standardStart = 8 * 60; 
+        const standardStart = 8 * 60; // 8:00 AM in minutes
         const startInMinutes = h1 * 60 + m1;
 
         let punctuality = '';
-        if (startInMinutes < standardStart) {
-            punctuality = 'Early';
-        } else if (startInMinutes === standardStart) {
-            punctuality = 'On Time';
-        } else {
-            punctuality = 'Late';
-        }
+        if (startInMinutes < standardStart) punctuality = 'Early';
+        else if (startInMinutes === standardStart) punctuality = 'On Time';
+        else punctuality = 'Late';
 
         if (punctualityDisplay) {
             punctualityDisplay.value = punctuality;
@@ -73,6 +67,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let start = h1 * 60 + m1;
         let end = h2 * 60 + m2;
 
+        // STRICT 8:00 AM START RULE
+        // If they are early, we force the start time to 8:00 AM (480 minutes) for calculation
+        if (start < standardStart) {
+            start = standardStart;
+        }
+
         let isExceeded = false;
         const cutoffTime = 19 * 60; // 7:00 PM in minutes
 
@@ -82,10 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isExceeded = true;
         }
 
-        // Handle overnight just in case
         if (end < start && !isExceeded) end += 24 * 60;
 
-        // Calculate RAW hours and minutes
         const diffMinutes = end - start;
         const rawHours = diffMinutes / 60;
 
@@ -103,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
             status = 'Undertime';
         }
 
-        // Status Labels
         if (isExceeded) {
             status = 'Exceeded Overtime';
         } else if (h2 >= 19 && end === cutoffTime) {
@@ -112,12 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
             status = 'Whole Day';
         }
 
-        // Update UI for Hours
+        // Update UI
         let displayStr = finalHours.toFixed(2);
         if (lunchDeducted) displayStr += ' (Lunch Deducted)';
         hoursDisplay.value = displayStr;
 
-        // Update UI for Status
         if (statusDisplay) {
             statusDisplay.value = status;
             statusDisplay.style.fontWeight = 'bold';
@@ -128,7 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (status === 'Exceeded Overtime') statusDisplay.style.color = 'var(--red)';
         }
     }
-
     // Attach the event listeners so it calculates live as they type
     if (timeIn && timeOut) {
         timeIn.addEventListener('change', computeHours);

@@ -8,6 +8,7 @@ $userName = $_SESSION['name'] ?? 'Student';
 $userEmail = $_SESSION['email'] ?? '';
 $initials = strtoupper(substr($userName, 0, 1));
 
+// Fetch unread notifications
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
 $stmt->execute([$_SESSION['user_id']]);
 $unreadCount = (int)$stmt->fetchColumn();
@@ -16,7 +17,14 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 
 function student_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
 {
-    global $userName, $userEmail, $initials, $unreadCount, $currentPage;
+    // We must declare these global variables so the function can access them
+    global $pdo, $userName, $userEmail, $initials, $unreadCount, $currentPage;
+
+    // Check if student is officially accepted into a company
+    $stmt = $pdo->prepare("SELECT company_id, application_status FROM student_profiles WHERE user_id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $appStatus = $stmt->fetch();
+    $isAccepted = ($appStatus && $appStatus['application_status'] === 'accepted');
 ?>
     <!DOCTYPE html>
     <html lang="en">
@@ -27,7 +35,6 @@ function student_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
         <title><?= e($pageTitle) ?> — PractiTrack</title>
         <link rel="stylesheet" href="/PractiTrack/assets/css/global.css">
         <link rel="stylesheet" href="/PractiTrack/assets/css/student.css">
-
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     </head>
 
@@ -42,23 +49,28 @@ function student_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
                 <div class="sidebar-role">Student Portal</div>
 
                 <nav class="sidebar-menu">
-                    <a href="/PractiTrack/student/dashboard.php" class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">
-                        <span class="icon"><i class="fas fa-home"></i></span> Dashboard
-                    </a>
+                    <!-- ONLY VISIBLE IF ACCEPTED -->
+                    <?php if ($isAccepted): ?>
+                        <a href="/PractiTrack/student/dashboard.php" class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">
+                            <span class="icon"><i class="fas fa-home"></i></span> Dashboard
+                        </a>
+                        <a href="/PractiTrack/student/documents.php" class="<?= $currentPage === 'documents.php' ? 'active' : '' ?>">
+                            <span class="icon"><i class="fas fa-folder-open"></i></span> Documents
+                        </a>
+                        <a href="/PractiTrack/student/attendance.php" class="<?= $currentPage === 'attendance.php' ? 'active' : '' ?>">
+                            <span class="icon"><i class="fas fa-calendar-check"></i></span> Attendance
+                        </a>
+                        <a href="/PractiTrack/student/weekly-report.php" class="<?= $currentPage === 'weekly-report.php' ? 'active' : '' ?>">
+                            <span class="icon"><i class="fas fa-file-alt"></i></span> Reports
+                        </a>
+                        <a href="/PractiTrack/student/progress.php" class="<?= $currentPage === 'progress.php' ? 'active' : '' ?>">
+                            <span class="icon"><i class="fas fa-chart-line"></i></span> Progress
+                        </a>
+                    <?php endif; ?>
+
+                    <!-- ALWAYS VISIBLE -->
                     <a href="/PractiTrack/student/companies.php" class="<?= $currentPage === 'companies.php' ? 'active' : '' ?>">
                         <span class="icon"><i class="fas fa-building"></i></span> Find Company
-                    </a>
-                    <a href="/PractiTrack/student/documents.php" class="<?= $currentPage === 'documents.php' ? 'active' : '' ?>">
-                        <span class="icon"><i class="fas fa-folder-open"></i></span> Documents
-                    </a>
-                    <a href="/PractiTrack/student/attendance.php" class="<?= $currentPage === 'attendance.php' ? 'active' : '' ?>">
-                        <span class="icon"><i class="fas fa-calendar-check"></i></span> Attendance
-                    </a>
-                    <a href="/PractiTrack/student/weekly-report.php" class="<?= $currentPage === 'weekly-report.php' ? 'active' : '' ?>">
-                        <span class="icon"><i class="fas fa-file-alt"></i></span> Reports
-                    </a>
-                    <a href="/PractiTrack/student/progress.php" class="<?= $currentPage === 'progress.php' ? 'active' : '' ?>">
-                        <span class="icon"><i class="fas fa-chart-line"></i></span> Progress
                     </a>
                     <a href="/PractiTrack/student/notification.php" class="<?= $currentPage === 'notification.php' ? 'active' : '' ?>">
                         <span class="icon"><i class="fas fa-bell"></i></span> Notifications

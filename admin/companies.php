@@ -1,11 +1,12 @@
 <?php
 require_once __DIR__ . '/../includes/admin-layout.php';
 
-// Fetch companies and count assigned students
+// Fetch companies
 $stmt = $pdo->query("
     SELECT u.id, u.first_name, u.last_name, u.email, u.is_active, 
            cp.company_name, cp.industry, cp.is_partner, cp.description, 
            cp.available_positions, cp.address, cp.website, cp.hr_contact_person, cp.social_media,
+           cp.max_slots, cp.requirements,
            (SELECT COUNT(*) FROM student_profiles WHERE company_id = u.id) as student_count
     FROM users u
     JOIN company_profiles cp ON cp.user_id = u.id
@@ -18,37 +19,58 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
-    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= e($msg) ?></span></div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= $msg ?></span></div>
 <?php endif; ?>
 <?php if ($msg = get_flash('error')): ?>
     <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
 <div class="panel">
-    <div class="panel-header">
-        <h3>Registered Companies</h3>
-        <div class="sub"><?= count($companies) ?> company account(s)</div>
+    <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
+        <div>
+            <h3>Registered Companies</h3>
+            <div class="sub" id="companyCount"><?= count($companies) ?> company account(s)</div>
+        </div>
+        
+        <!-- Search & Filter -->
+        <div style="display: flex; gap: 10px; margin-left: auto; align-items: center;">
+            <div class="field" style="margin: 0; width: 220px;">
+                <input type="text" id="searchCompany" placeholder="Search company name..." style="padding: 8px 12px; font-size: 13px;">
+            </div>
+            <div class="field" style="margin: 0;">
+                <select id="filterStatus" style="padding: 8px 12px; font-size: 13px;">
+                    <option value="all">All Statuses</option>
+                    <option value="1">Official Partners</option>
+                    <option value="0">Standard Companies</option>
+                </select>
+            </div>
+            
+            <!-- Add Company Button -->
+            <button type="button" class="btn btn-primary" onclick="openAddModal()" style="background:var(--gray-800);">
+                <i class="fas fa-plus"></i> Add Company
+            </button>
+        </div>
     </div>
     <div class="panel-body no-pad">
         <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table" id="companiesTable">
                 <thead>
                     <tr>
                         <th>Company Name</th>
                         <th>Contact Person</th>
-                        <th>Assigned Students</th>
+                        <th>Slots (Assigned/Max)</th>
                         <th>Partner Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($companies)): ?>
-                        <tr><td colspan="5" class="empty">No companies registered yet. Go to "Manage Accounts" to create one.</td></tr>
+                        <tr><td colspan="5" class="empty">No companies registered yet.</td></tr>
                     <?php else: ?>
                         <?php foreach ($companies as $c): ?>
-                            <tr>
+                            <tr class="company-row" data-status="<?= $c['is_partner'] ?>">
                                 <td>
-                                    <strong><?= e($c['company_name']) ?></strong><br>
+                                    <strong class="company-name"><?= e($c['company_name']) ?></strong><br>
                                     <small style="color:var(--gray-400);"><?= e($c['industry'] ?? 'Industry not set') ?></small>
                                 </td>
                                 <td>
@@ -56,7 +78,9 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                                     <small style="color:var(--gray-400);"><?= e($c['email']) ?></small>
                                 </td>
                                 <td>
-                                    <span class="badge" style="background:#E2E8F0; color:#1E293B;"><?= $c['student_count'] ?> Students</span>
+                                    <span class="badge" style="background:#E2E8F0; color:#1E293B;">
+                                        <?= $c['student_count'] ?> / <?= $c['max_slots'] ?? '1' ?> Slots
+                                    </span>
                                 </td>
                                 <td>
                                     <?php if ($c['is_partner']): ?>
@@ -67,12 +91,10 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                                 </td>
                                 <td>
                                     <div style="display:flex; gap:6px;">
-                                        <!-- VIEW BUTTON -->
                                         <button type="button" class="btn btn-sm" style="background:#F1F5F9; color:#1E293B;" onclick='viewCompany(<?= json_encode($c) ?>)'>
                                             <i class="fas fa-eye"></i> View
                                         </button>
                                         
-                                        <!-- EDIT BUTTON -->
                                         <button type="button" class="btn btn-sm" style="background:#E0F2FE; color:#0284C7;" onclick='editCompany(<?= json_encode($c) ?>)'>
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
@@ -84,6 +106,104 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                 </tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- ADD COMPANY MODAL (NEW) -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal-box" style="max-width: 650px; padding: 0;">
+        <form action="/PractiTrack/php/admin/company-handler.php" method="POST" style="display: flex; flex-direction: column; max-height: 85vh; width: 100%;">
+            <input type="hidden" name="action" value="add_company">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            
+            <div class="modal-header">
+                <h3><i class="fas fa-building"></i> Add New Company</h3>
+                <button type="button" class="modal-close" onclick="closeModal('addModal')"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="field full">
+                        <label>Company Name</label>
+                        <input type="text" name="company_name" required>
+                    </div>
+                    <div class="field">
+                        <label>Industry</label>
+                        <input type="text" name="industry">
+                    </div>
+                    <div class="field">
+                        <label>Max Student Slots</label>
+                        <input type="number" name="max_slots" min="1" value="1" required>
+                    </div>
+                    <div class="field full">
+                        <label>Partner Status</label>
+                        <select name="is_partner">
+                            <option value="1">Official Partner (Visible to Students)</option>
+                            <option value="0">Standard (Hidden from Students)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="field full">
+                        <label>Description</label>
+                        <textarea name="description" style="min-height: 60px;"></textarea>
+                    </div>
+                    
+                    <div class="field full">
+                        <label>Available Positions</label>
+                        <input type="text" name="available_positions" placeholder="e.g. Web Developer, IT Support">
+                    </div>
+
+                    <div class="field full">
+                        <label>Requirements</label>
+                        <textarea name="requirements" style="min-height: 60px;"></textarea>
+                    </div>
+                    
+                    <div class="field">
+                        <label>Address</label>
+                        <input type="text" name="address">
+                    </div>
+                    <div class="field">
+                        <label>Website</label>
+                        <input type="text" name="website">
+                    </div>
+                    
+                    <div class="field">
+                        <label>HR / Contact Person</label>
+                        <input type="text" name="hr_contact_person">
+                    </div>
+                    <div class="field">
+                        <label>Social Media / Email</label>
+                        <input type="text" name="social_media">
+                    </div>
+
+                    <div class="field full" style="border-top: 1px dashed var(--gray-300); padding-top: 16px; margin-top: 8px;">
+                        <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--gray-800);"><i class="fas fa-user-lock"></i> Login Credentials</h4>
+                        <div class="form-grid">
+                            <div class="field">
+                                <label>Company Email (Login)</label>
+                                <input type="email" name="email" required>
+                            </div>
+                            <div class="field">
+                                <label>First Name (Representative)</label>
+                                <input type="text" name="first_name" required>
+                            </div>
+                            <div class="field">
+                                <label>Last Name (Representative)</label>
+                                <input type="text" name="last_name" required>
+                            </div>
+                        </div>
+                        <div class="form-hint"><em>Default password will be <strong>PractiTrack2026</strong>.</em></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm" onclick="closeModal('addModal')" style="background:var(--gray-200); color:var(--gray-800);">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-primary">Create Company</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -112,11 +232,15 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                 <div>
                     <h4 style="margin-bottom:8px; font-size:15px;">HR / Contact Person</h4>
                     <p style="font-size:13px; margin-bottom:6px;"><i class="fas fa-user-tie" style="color:var(--gray-400); width:16px;"></i> <span id="v_hr"></span></p>
+                    <p style="font-size:13px; margin-bottom:6px;"><i class="fas fa-users" style="color:var(--gray-400); width:16px;"></i> Max Slots: <span id="v_slots"></span></p>
                 </div>
             </div>
             
             <h4 style="margin-top:20px; margin-bottom:8px; font-size:15px;">Available Positions</h4>
             <p style="font-size:14px;"><span id="v_positions"></span></p>
+
+            <h4 style="margin-top:20px; margin-bottom:8px; font-size:15px;">Requirements</h4>
+            <p style="font-size:14px;"><span id="v_requirements"></span></p>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn btn-sm" onclick="closeModal('viewModal')" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
@@ -128,17 +252,18 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 <!-- EDIT COMPANY MODAL -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="editModal">
-    <div class="modal-box" style="max-width: 650px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-edit"></i> Edit Company Details</h3>
-            <button class="modal-close" onclick="closeModal('editModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <form action="/PractiTrack/php/admin/company-handler.php" method="POST">
+    <div class="modal-box" style="max-width: 650px; padding: 0;">
+        <form action="/PractiTrack/php/admin/company-handler.php" method="POST" style="display: flex; flex-direction: column; max-height: 85vh; width: 100%;">
             <input type="hidden" name="action" value="edit_company">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
             <input type="hidden" name="company_id" id="e_id">
             
-            <div class="modal-body" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Edit Company Details</h3>
+                <button type="button" class="modal-close" onclick="closeModal('editModal')"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="modal-body">
                 <div class="form-grid">
                     <div class="field full">
                         <label>Company Name</label>
@@ -149,6 +274,10 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                         <input type="text" name="industry" id="e_industry">
                     </div>
                     <div class="field">
+                        <label>Max Student Slots</label>
+                        <input type="number" name="max_slots" id="e_slots" min="1" value="1" required>
+                    </div>
+                    <div class="field full">
                         <label>Partner Status</label>
                         <select name="is_partner" id="e_partner">
                             <option value="1">Official Partner (Visible to Students)</option>
@@ -163,7 +292,12 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                     
                     <div class="field full">
                         <label>Available Positions</label>
-                        <input type="text" name="available_positions" id="e_positions" placeholder="e.g. Web Developer, IT Support">
+                        <input type="text" name="available_positions" id="e_positions">
+                    </div>
+
+                    <div class="field full">
+                        <label>Requirements</label>
+                        <textarea name="requirements" id="e_requirements" style="min-height: 60px;"></textarea>
                     </div>
                     
                     <div class="field">
@@ -185,6 +319,7 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                     </div>
                 </div>
             </div>
+            
             <div class="modal-footer">
                 <button type="button" class="btn btn-sm" onclick="closeModal('editModal')" style="background:var(--gray-200); color:var(--gray-800);">Cancel</button>
                 <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
@@ -194,7 +329,10 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 </div>
 
 <script>
-    // View Modal Logic
+    // --- Modals ---
+    function openAddModal() { document.getElementById('addModal').classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
     function viewCompany(data) {
         document.getElementById('v_name').textContent = data.company_name;
         document.getElementById('v_industry').textContent = data.industry || 'Industry not specified';
@@ -204,28 +342,59 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
         document.getElementById('v_social').textContent = data.social_media || 'Not specified';
         document.getElementById('v_hr').textContent = data.hr_contact_person || 'Not specified';
         document.getElementById('v_positions').textContent = data.available_positions || 'Not specified';
-        
+        document.getElementById('v_requirements').textContent = data.requirements || 'No specific requirements listed.';
+        document.getElementById('v_slots').textContent = data.max_slots || '1';
         document.getElementById('viewModal').classList.add('open');
     }
 
-    // Edit Modal Logic
     function editCompany(data) {
         document.getElementById('e_id').value = data.id;
         document.getElementById('e_name').value = data.company_name;
         document.getElementById('e_industry').value = data.industry || '';
+        document.getElementById('e_slots').value = data.max_slots || 1;
         document.getElementById('e_partner').value = data.is_partner;
         document.getElementById('e_description').value = data.description || '';
         document.getElementById('e_positions').value = data.available_positions || '';
+        document.getElementById('e_requirements').value = data.requirements || '';
         document.getElementById('e_address').value = data.address || '';
         document.getElementById('e_website').value = data.website || '';
         document.getElementById('e_hr').value = data.hr_contact_person || '';
         document.getElementById('e_social').value = data.social_media || '';
-        
         document.getElementById('editModal').classList.add('open');
     }
 
-    function closeModal(id) {
-        document.getElementById(id).classList.remove('open');
+    // --- Search & Filter Logic ---
+    const searchInput = document.getElementById('searchCompany');
+    const filterSelect = document.getElementById('filterStatus');
+    const rows = document.querySelectorAll('.company-row');
+    const countDisplay = document.getElementById('companyCount');
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const filterTerm = filterSelect.value;
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const name = row.querySelector('.company-name').textContent.toLowerCase();
+            const status = row.getAttribute('data-status');
+
+            const matchesSearch = name.includes(searchTerm);
+            const matchesFilter = (filterTerm === 'all') || (status === filterTerm);
+
+            if (matchesSearch && matchesFilter) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        countDisplay.textContent = `${visibleCount} company account(s)`;
+    }
+
+    if (searchInput && filterSelect) {
+        searchInput.addEventListener('input', filterTable);
+        filterSelect.addEventListener('change', filterTable);
     }
 </script>
 

@@ -117,14 +117,18 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 <!-- LOG TIME MODAL -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="logTimeModal">
-    <div class="modal-box" style="max-width: 500px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-clock"></i> Log Attendance</h3>
-            <button class="modal-close" onclick="closeLogModal()"><i class="fas fa-times"></i></button>
-        </div>
-        <form action="/PractiTrack/php/student/attendance-handler.php" method="POST">
+    <!-- Added padding: 0 to modal-box -->
+    <div class="modal-box" style="max-width: 500px; padding: 0;">
+        
+        <!-- The form is the flex container -->
+        <form action="/PractiTrack/php/student/attendance-handler.php" method="POST" style="display: flex; flex-direction: column; max-height: 85vh;">
             <input type="hidden" name="action" value="log_attendance">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+
+            <div class="modal-header">
+                <h3><i class="fas fa-clock"></i> Log Attendance</h3>
+                <button type="button" class="modal-close" onclick="closeLogModal()"><i class="fas fa-times"></i></button>
+            </div>
 
             <div class="modal-body">
                 <div class="field">
@@ -181,7 +185,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 <!-- VIEW DETAILS MODAL -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="attendanceModal">
-    <div class="modal-box">
+    <div class="modal-box" style="padding: 0;">
         <div class="modal-header" style="background:var(--light-blue-light); border-bottom:2px solid var(--light-blue);">
             <h3 style="color:var(--light-blue-dark);"><i class="fas fa-clipboard-list"></i> Attendance Details</h3>
             <button class="modal-close" onclick="closeModal('attendanceModal')"><i class="fas fa-times"></i></button>

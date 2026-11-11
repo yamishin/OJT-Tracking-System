@@ -11,23 +11,25 @@ if (!verify_csrf($_POST['csrf_token'] ?? '')) {
 $studentId = $_SESSION['user_id'];
 $companyId = (int)$_POST['company_id'];
 
-// Check if already assigned
 $stmt = $pdo->prepare("SELECT application_status FROM student_profiles WHERE user_id = ?");
 $stmt->execute([$studentId]);
 $currentStatus = $stmt->fetchColumn();
 
 if ($currentStatus === 'pending' || $currentStatus === 'accepted') {
-    set_flash('error', 'You cannot apply while you have a pending or accepted application.');
+    set_flash('error', 'You already have a pending or accepted application.');
     redirect('/PractiTrack/student/companies.php');
 }
 
-// Update application
 $stmt = $pdo->prepare("UPDATE student_profiles SET company_id = ?, application_status = 'pending' WHERE user_id = ?");
 $stmt->execute([$companyId, $studentId]);
 
-// Notify Company (Optional but good practice)
-$pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'New OJT Application', 'A student has applied to your company.', 'info')")
-    ->execute([$companyId]);
+// Notify Admin
+$stmt = $pdo->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+$adminId = $stmt->fetchColumn();
+if ($adminId) {
+    $pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'New OJT Application', 'A student has applied to a company. Please review.', 'info')")
+        ->execute([$adminId]);
+}
 
-set_flash('success', 'Application submitted! The company will review your request.');
+set_flash('success', 'Application submitted! Please wait for the Admin to approve it.');
 redirect('/PractiTrack/student/companies.php');
