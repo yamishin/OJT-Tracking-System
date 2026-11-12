@@ -10,9 +10,7 @@ if (!verify_csrf($_POST['csrf_token'] ?? '')) {
 
 $action = $_POST['action'] ?? '';
 
-// ============================================
-// 1. ADD NEW STUDENT
-// ============================================
+//  ADD NEW STUDENT
 if ($action === 'add_student') {
     $firstName = trim($_POST['first_name']);
     $lastName = trim($_POST['last_name']);
@@ -59,9 +57,8 @@ if ($action === 'add_student') {
     redirect('/PractiTrack/admin/students.php');
 }
 
-// ============================================
-// 2. TOGGLE ACTIVE STATUS (Deactivate/Activate)
-// ============================================
+
+//  TOGGLE ACTIVE STATUS 
 if ($action === 'toggle_active') {
     $studentId = (int)$_POST['student_id'];
     $currentStatus = (int)$_POST['current_status'];

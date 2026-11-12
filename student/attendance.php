@@ -7,12 +7,10 @@ $stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY lo
 $stmt->execute([$studentId]);
 $records = $stmt->fetchAll();
 
-// Total standard hours (for progress)
 $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ?");
 $stmt->execute([$studentId]);
 $totalHours = (float)$stmt->fetchColumn();
 
-// Total overtime hours (for display)
 $stmt = $pdo->prepare("SELECT COALESCE(SUM(overtime_hours),0) FROM attendance WHERE student_id = ?");
 $stmt->execute([$studentId]);
 $totalOvertime = (float)$stmt->fetchColumn();
@@ -34,9 +32,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             <h2 style="font-family: var(--font-heading); font-size: 22px; margin-bottom: 4px;">Ready to log your hours?</h2>
             <p style="font-size: 14px; opacity: 0.9;">
                 Standard Hours: <strong><?= number_format($totalHours, 2) ?></strong> 
-                <?php if ($totalOvertime > 0): ?>
-                    | Overtime: <strong style="color: #FFEDD5;"><?= number_format($totalOvertime, 2) ?></strong>
-                <?php endif; ?>
+                <?php if ($totalOvertime > 0): ?> | Overtime: <strong style="color: #FFEDD5;"><?= number_format($totalOvertime, 2) ?></strong><?php endif; ?>
             </p>
         </div>
         <button type="button" class="btn btn-primary" onclick="openLogModal()" style="background: var(--white); color: var(--light-blue-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
@@ -47,18 +43,45 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 
 <!-- Attendance History Table -->
 <div class="panel">
-    <div class="panel-header">
-        <h3>Attendance History</h3>
-        <div class="sub"><?= count($records) ?> record(s)</div>
+    <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
+        <div>
+            <h3>Attendance History</h3>
+            <div class="sub" id="recordCount"><?= count($records) ?> record(s)</div>
+        </div>
+        
+        <!-- Search and Filter -->
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+            <div class="field" style="margin: 0; width: 180px;">
+                <input type="text" id="searchDate" placeholder="Search date..." style="padding: 8px 12px; font-size: 13px;">
+            </div>
+            <div class="field" style="margin: 0;">
+                <select id="filterStatus" style="padding: 8px 12px; font-size: 13px;">
+                    <option value="all">All Statuses</option>
+                    <option value="Whole Day">Whole Day</option>
+                    <option value="Half Day">Half Day</option>
+                    <option value="Undertime">Undertime</option>
+                    <option value="Overtime">Overtime</option>
+                    <option value="Exceeded Overtime">Exceeded Overtime</option>
+                </select>
+            </div>
+            <div class="field" style="margin: 0;">
+                <select id="filterPunctuality" style="padding: 8px 12px; font-size: 13px;">
+                    <option value="all">All Punctuality</option>
+                    <option value="Early">Early</option>
+                    <option value="On Time">On Time</option>
+                    <option value="Late">Late</option>
+                </select>
+            </div>
+        </div>
     </div>
     <div class="panel-body no-pad">
         <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table" id="attendanceTable">
                 <thead>
                     <tr>
                         <th>Date</th>
                         <th>Time In / Out</th>
-                        <th>Standard Hours</th>
+                        <th>Hours</th>
                         <th>Punctuality</th>
                         <th>Status</th>
                         <th>Action</th>
@@ -69,8 +92,8 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                         <tr><td colspan="6" class="empty">No attendance yet. Click "Log Time" to start.</td></tr>
                     <?php else: ?>
                         <?php foreach ($records as $r): ?>
-                            <tr>
-                                <td><?= date('M d, Y (D)', strtotime($r['log_date'])) ?></td>
+                            <tr class="att-row" data-status="<?= e($r['status']) ?>" data-punctuality="<?= e($r['punctuality'] ?? 'On Time') ?>">
+                                <td class="att-date"><?= date('M d, Y (D)', strtotime($r['log_date'])) ?></td>
                                 <td>
                                     <span style="color:var(--gray-600);"><?= $r['time_in'] ? date('h:i A', strtotime($r['time_in'])) : '—' ?></span>
                                     <span style="margin:0 8px; color:var(--gray-400);">→</span>
@@ -79,23 +102,19 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                                 <td><strong><?= number_format((float)$r['total_hours'], 2) ?></strong></td>
                                 <td>
                                     <span class="badge" style="background:
-                                        <?php 
-                                            if($r['punctuality'] == 'Early') echo '#E8F5E9; color:#1B5E20;';
-                                            elseif($r['punctuality'] == 'On Time') echo '#E0F2FE; color:#0284C7;';
-                                            else echo '#FEE2E2; color:#991B1B;';
-                                        ?>">
+                                        <?php if($r['punctuality'] == 'Early') echo '#E8F5E9; color:#1B5E20;';
+                                              elseif($r['punctuality'] == 'On Time') echo '#E0F2FE; color:#0284C7;';
+                                              else echo '#FEE2E2; color:#991B1B;'; ?>">
                                         <?= e($r['punctuality'] ?? 'On Time') ?>
                                     </span>
                                 </td>
                                 <td>
                                     <span class="badge" style="background:
-                                        <?php 
-                                            if($r['status'] == 'Whole Day') echo '#E8F5E9; color:#1B5E20;';
-                                            elseif($r['status'] == 'Half Day') echo '#E0F2FE; color:#0284C7;';
-                                            elseif($r['status'] == 'Undertime') echo '#FFF8E1; color:#B26A00;';
-                                            elseif($r['status'] == 'Overtime') echo '#FFEDD5; color:#C2410C;';
-                                            else echo '#FEE2E2; color:#991B1B;';
-                                        ?>">
+                                        <?php if($r['status'] == 'Whole Day') echo '#E8F5E9; color:#1B5E20;';
+                                              elseif($r['status'] == 'Half Day') echo '#E0F2FE; color:#0284C7;';
+                                              elseif($r['status'] == 'Undertime') echo '#FFF8E1; color:#B26A00;';
+                                              elseif($r['status'] == 'Overtime') echo '#FFEDD5; color:#C2410C;';
+                                              else echo '#FEE2E2; color:#991B1B;'; ?>">
                                         <?= e($r['status']) ?>
                                     </span>
                                 </td>
@@ -117,10 +136,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 <!-- LOG TIME MODAL -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="logTimeModal">
-    <!-- Added padding: 0 to modal-box -->
     <div class="modal-box" style="max-width: 500px; padding: 0;">
-        
-        <!-- The form is the flex container -->
         <form action="/PractiTrack/php/student/attendance-handler.php" method="POST" style="display: flex; flex-direction: column; max-height: 85vh;">
             <input type="hidden" name="action" value="log_attendance">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -229,14 +245,8 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 <script>
     // --- Log Time Modal Logic ---
     const logModal = document.getElementById('logTimeModal');
-    
-    function openLogModal() {
-        logModal.classList.add('open');
-    }
-
-    function closeLogModal() {
-        logModal.classList.remove('open');
-    }
+    function openLogModal() { logModal.classList.add('open'); }
+    function closeLogModal() { logModal.classList.remove('open'); }
 
     // --- View Details Modal Logic ---
     const viewModal = document.getElementById('attendanceModal');
@@ -265,7 +275,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 
         const otHours = parseFloat(data.overtime_hours || 0);
         const otRow = document.getElementById('m_overtime_row');
-        
         if (otHours > 0) {
             otRow.style.display = 'flex';
             document.getElementById('m_overtime_hours').textContent = otHours.toFixed(2) + ' hours';
@@ -276,15 +285,52 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
         viewModal.classList.add('open');
     }
 
-    function closeModal(id) {
-        document.getElementById(id).classList.remove('open');
-    }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
     // Close on clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === logModal) closeLogModal();
         if (e.target === viewModal) closeModal('attendanceModal');
     });
+
+    // --- Search & Filter Logic ---
+    const searchInput = document.getElementById('searchDate');
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPunctuality = document.getElementById('filterPunctuality');
+    const rows = document.querySelectorAll('.att-row');
+    const countDisplay = document.getElementById('recordCount');
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusTerm = filterStatus.value;
+        const punctualityTerm = filterPunctuality.value;
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const dateText = row.querySelector('.att-date').textContent.toLowerCase();
+            const rowStatus = row.getAttribute('data-status');
+            const rowPunctuality = row.getAttribute('data-punctuality');
+
+            const matchesSearch = dateText.includes(searchTerm);
+            const matchesStatus = (statusTerm === 'all') || (rowStatus === statusTerm);
+            const matchesPunctuality = (punctualityTerm === 'all') || (rowPunctuality === punctualityTerm);
+
+            if (matchesSearch && matchesStatus && matchesPunctuality) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        countDisplay.textContent = `${visibleCount} record(s)`;
+    }
+
+    if (searchInput && filterStatus && filterPunctuality) {
+        searchInput.addEventListener('input', filterTable);
+        filterStatus.addEventListener('change', filterTable);
+        filterPunctuality.addEventListener('change', filterTable);
+    }
 </script>
 
 <?php student_layout_bottom(); ?>

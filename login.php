@@ -23,6 +23,7 @@ unset($_SESSION['old']);
     <title>Log In — PractiTrack</title>
     <link rel="stylesheet" href="assets/css/global.css" />
     <link rel="stylesheet" href="assets/css/auth.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
 <body>
@@ -42,15 +43,15 @@ unset($_SESSION['old']);
 
         <main class="auth-main">
             <div class="auth-card">
-                <a href="index.php" class="back-home">← Back to Home</a>
+                <a href="index.php" class="back-home"><i class="fas fa-arrow-left"></i> Back to Home</a>
                 <h1>Log In</h1>
                 <p class="subtitle">Select your account type to continue.</p>
 
                 <?php if ($flashError): ?>
-                    <div class="alert alert-error"><span>⚠</span><span><?= e($flashError) ?></span></div>
+                    <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($flashError) ?></span></div>
                 <?php endif; ?>
                 <?php if ($flashSuccess): ?>
-                    <div class="alert alert-success"><span>✓</span><span><?= e($flashSuccess) ?></span></div>
+                    <div class="alert alert-success"><i class="fas fa-check-circle"></i><span><?= e($flashSuccess) ?></span></div>
                 <?php endif; ?>
 
                 <!-- Role Tabs -->
@@ -80,7 +81,7 @@ unset($_SESSION['old']);
                         <label for="password_student">Password</label>
                         <div class="password-wrap">
                             <input type="password" id="password_student" name="password" placeholder="Enter your password" required>
-                            <button type="button" class="password-toggle" data-target="password_student">👁</button>
+                            <button type="button" class="password-toggle" data-target="password_student"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
 
@@ -103,17 +104,12 @@ unset($_SESSION['old']);
                         <label for="password_staff">Password</label>
                         <div class="password-wrap">
                             <input type="password" id="password_staff" name="password" placeholder="Enter your password" required>
-                            <button type="button" class="password-toggle" data-target="password_staff">👁</button>
+                            <button type="button" class="password-toggle" data-target="password_staff"><i class="fas fa-eye"></i></button>
                         </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-block">Log In as Staff</button>
                 </form>
-
-                <div class="auth-divider">or</div>
-                <div class="auth-footer" style="color:var(--gray-400); font-size:13px;">
-                    <i class="fas fa-info-circle"></i> Student accounts must be created by the School Administrator.
-                </div>
             </div>
 
         </main>
@@ -133,7 +129,16 @@ unset($_SESSION['old']);
                 if (!target) return;
                 const isPwd = target.type === 'password';
                 target.type = isPwd ? 'text' : 'password';
-                btn.textContent = isPwd ? '🙈' : '👁';
+                
+                // Toggle icon
+                const icon = btn.querySelector('i');
+                if (isPwd) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
             });
         });
     </script>

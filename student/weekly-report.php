@@ -48,19 +48,22 @@ student_layout_top('Reports', 'Generate weekly or monthly reports from your atte
 <!-- Table Panel -->
 <div class="panel">
     <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
-        <h3>Report History</h3>
+        <div>
+            <h3>Report History</h3>
+            <div class="sub" id="reportCount"><?= count($reports) ?> report(s)</div>
+        </div>
         
-        <!-- Search and Filter -->
-        <div style="display: flex; gap: 10px; margin-left: auto;">
-            <div class="field" style="margin: 0; width: 200px;">
-                <input type="text" id="searchReport" placeholder="Search reports..." style="padding: 8px 12px; font-size: 13px;">
+        <!-- Search and Filter Toggle -->
+        <div style="display: flex; gap: 10px; margin-left: auto; align-items: center;">
+            <div class="field" style="margin: 0; width: 180px;">
+                <input type="text" id="searchReport" placeholder="Search dates..." style="padding: 8px 12px; font-size: 13px;">
             </div>
-            <div class="field" style="margin: 0;">
-                <select id="filterReport" style="padding: 8px 12px; font-size: 13px;">
-                    <option value="all">All Types</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                </select>
+            
+            <!-- Custom Toggle Switch -->
+            <div style="display: flex; background: var(--gray-200); border-radius: var(--radius-full); padding: 4px; position: relative;">
+                <button type="button" class="toggle-btn active" onclick="setFilter('all')" data-filter="all">All</button>
+                <button type="button" class="toggle-btn" onclick="setFilter('weekly')" data-filter="weekly">Weekly</button>
+                <button type="button" class="toggle-btn" onclick="setFilter('monthly')" data-filter="monthly">Monthly</button>
             </div>
         </div>
     </div>
@@ -73,7 +76,7 @@ student_layout_top('Reports', 'Generate weekly or monthly reports from your atte
                         <th>Dates Covered</th>
                         <th>Hours</th>
                         <th>Status</th>
-                        <th>Feedback</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -81,12 +84,16 @@ student_layout_top('Reports', 'Generate weekly or monthly reports from your atte
                         <tr><td colspan="5" class="empty">No reports yet. Click "Add Report" to create one.</td></tr>
                     <?php else: ?>
                         <?php foreach ($reports as $r): ?>
-                            <tr class="report-row">
+                            <tr class="report-row" data-type="<?= strtolower($r['report_type']) ?>">
                                 <td class="report-type"><strong><?= ucfirst($r['report_type']) ?></strong></td>
                                 <td class="report-dates"><?= date('M d', strtotime($r['week_start'])) ?> – <?= date('M d, Y', strtotime($r['week_end'])) ?></td>
                                 <td><?= number_format((float)$r['hours_rendered'], 2) ?></td>
                                 <td><span class="badge <?= e($r['status']) ?>"><?= e($r['status']) ?></span></td>
-                                <td><?= e($r['company_feedback'] ?? '—') ?></td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-ghost" onclick="viewReport(<?= htmlspecialchars(json_encode($r)) ?>)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -101,8 +108,6 @@ student_layout_top('Reports', 'Generate weekly or monthly reports from your atte
 <!-- ========================================== -->
 <div class="modal-overlay" id="addReportModal">
     <div class="modal-box" style="max-width: 600px; padding: 0;">
-        
-        <!-- We enforce the flex container on the form itself -->
         <form action="/PractiTrack/php/student/report-handler.php" method="POST" style="display: flex; flex-direction: column; max-height: 85vh;">
             <input type="hidden" name="action" value="submit_report">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -158,71 +163,151 @@ student_layout_top('Reports', 'Generate weekly or monthly reports from your atte
                 <button type="submit" class="btn btn-sm btn-primary">Submit Report</button>
             </div>
         </form>
-        
     </div>
 </div>
 
+<!-- VIEW REPORT DETAILS MODAL -->
+<div class="modal-overlay" id="viewReportModal">
+    <div class="modal-box" style="max-width: 600px; padding: 0;">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-alt"></i> Report Details</h3>
+            <button type="button" class="modal-close" onclick="closeViewModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-row" style="padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+                <span class="detail-label" style="font-weight:600; color:var(--gray-600);">Type:</span>
+                <span class="detail-value" id="v_type" style="font-weight:bold; text-transform: capitalize;"></span>
+            </div>
+            <div class="detail-row" style="padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+                <span class="detail-label" style="font-weight:600; color:var(--gray-600);">Dates Covered:</span>
+                <span class="detail-value" id="v_dates" style="font-weight:bold;"></span>
+            </div>
+            <div class="detail-row" style="padding: 12px 0; border-bottom: 1px solid var(--gray-200);">
+                <span class="detail-label" style="font-weight:600; color:var(--gray-600);">Status:</span>
+                <span class="detail-value" id="v_status" style="font-weight:bold;"></span>
+            </div>
+            <div style="margin-top: 20px;">
+                <h4 style="font-size:14px; color:var(--gray-800); margin-bottom:8px;"><i class="fas fa-tasks" style="color:var(--light-blue);"></i> Activities Performed</h4>
+                <div id="v_activities" style="background:var(--gray-100); padding:12px; border-radius:var(--radius-sm); font-size:14px; line-height:1.6; color:var(--gray-600);"></div>
+            </div>
+            <div style="margin-top: 20px;">
+                <h4 style="font-size:14px; color:var(--gray-800); margin-bottom:8px;"><i class="fas fa-lightbulb" style="color:var(--warning);"></i> Learnings / Insights</h4>
+                <div id="v_learnings" style="background:var(--gray-100); padding:12px; border-radius:var(--radius-sm); font-size:14px; line-height:1.6; color:var(--gray-600);"></div>
+            </div>
+            <div id="feedback_section" style="margin-top: 20px; display: none;">
+                <h4 style="font-size:14px; color:var(--gray-800); margin-bottom:8px;"><i class="fas fa-comment-dots" style="color:var(--red);"></i> Company Feedback</h4>
+                <div id="v_feedback" style="background:#FFF8E1; border-left: 4px solid var(--warning); padding:12px; border-radius:var(--radius-sm); font-size:14px; line-height:1.6; color:#B26A00;"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-sm" onclick="closeViewModal()" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Toggle Switch Styling */
+    .toggle-btn {
+        background: transparent;
+        border: none;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--gray-600);
+        border-radius: var(--radius-full);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .toggle-btn.active {
+        background: var(--white);
+        color: var(--light-blue-dark);
+        box-shadow: var(--shadow-sm);
+    }
+</style>
+
 <script>
-    // --- Modal Logic ---
+    // --- Add Report Modal Logic ---
     const reportModal = document.getElementById('addReportModal');
+    function openReportModal() { reportModal.classList.add('open'); }
+    function closeReportModal() { reportModal.classList.remove('open'); }
 
-    function openReportModal() {
-        reportModal.classList.add('open');
+    // --- View Report Modal Logic ---
+    const viewModal = document.getElementById('viewReportModal');
+    function viewReport(data) {
+        document.getElementById('v_type').textContent = data.report_type;
+        const start = new Date(data.week_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const end = new Date(data.week_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        document.getElementById('v_dates').textContent = `${start} - ${end}`;
+        document.getElementById('v_status').innerHTML = `<span class="badge ${data.status}">${data.status}</span>`;
+        document.getElementById('v_activities').innerHTML = data.activities.replace(/\n/g, '<br>');
+        document.getElementById('v_learnings').innerHTML = data.learnings ? data.learnings.replace(/\n/g, '<br>') : '<em>No learnings provided.</em>';
+        
+        const feedbackSection = document.getElementById('feedback_section');
+        if (data.company_feedback) {
+            feedbackSection.style.display = 'block';
+            document.getElementById('v_feedback').innerHTML = data.company_feedback.replace(/\n/g, '<br>');
+        } else {
+            feedbackSection.style.display = 'none';
+        }
+        viewModal.classList.add('open');
     }
+    function closeViewModal() { viewModal.classList.remove('open'); }
 
-    function closeReportModal() {
-        reportModal.classList.remove('open');
-    }
-
-    // Close on clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === reportModal) closeReportModal();
+        if (e.target === viewModal) closeViewModal();
     });
 
     // --- Auto-calculate hours ---
     const checkboxes = document.querySelectorAll('.att-checkbox');
     const hoursInput = document.getElementById('hours_rendered');
-
     function calcHours() {
         let total = 0;
-        checkboxes.forEach(cb => {
-            if (cb.checked) {
-                total += parseFloat(cb.dataset.hours || 0);
-            }
-        });
+        checkboxes.forEach(cb => { if (cb.checked) total += parseFloat(cb.dataset.hours || 0); });
         hoursInput.value = total.toFixed(2);
     }
-
     checkboxes.forEach(cb => cb.addEventListener('change', calcHours));
 
-    // --- Search & Filter Logic ---
+    // --- Search & Filter Toggle Logic ---
     const searchInput = document.getElementById('searchReport');
-    const filterSelect = document.getElementById('filterReport');
+    const toggleBtns = document.querySelectorAll('.toggle-btn');
     const rows = document.querySelectorAll('.report-row');
+    const countDisplay = document.getElementById('reportCount');
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+        currentFilter = filter;
+        // Update button styles
+        toggleBtns.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === filter) btn.classList.add('active');
+        });
+        filterTable();
+    }
 
     function filterTable() {
         const searchTerm = searchInput.value.toLowerCase();
-        const filterTerm = filterSelect.value.toLowerCase();
+        let visibleCount = 0;
 
         rows.forEach(row => {
-            const type = row.querySelector('.report-type').textContent.toLowerCase();
             const dates = row.querySelector('.report-dates').textContent.toLowerCase();
+            const type = row.getAttribute('data-type');
             
-            const matchesSearch = dates.includes(searchTerm) || type.includes(searchTerm);
-            const matchesFilter = filterTerm === 'all' || type.includes(filterTerm);
+            const matchesSearch = dates.includes(searchTerm);
+            const matchesFilter = (currentFilter === 'all') || (type === currentFilter);
 
             if (matchesSearch && matchesFilter) {
                 row.style.display = '';
+                visibleCount++;
             } else {
                 row.style.display = 'none';
             }
         });
+
+        countDisplay.textContent = `${visibleCount} report(s)`;
     }
 
-    if (searchInput && filterSelect) {
-        searchInput.addEventListener('input', filterTable);
-        filterSelect.addEventListener('change', filterTable);
-    }
+    if (searchInput) searchInput.addEventListener('input', filterTable);
 </script>
 
 <?php student_layout_bottom(); ?>

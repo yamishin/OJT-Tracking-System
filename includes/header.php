@@ -23,7 +23,7 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <header class="navbar">
         <div class="container nav-container">
             <a href="index.php" class="nav-logo">
-                <div class="logo-mark">OJT</div>
+                <div class="logo-mark">PT</div>
                 <div>Practi<span class="accent">Track</span></div>
             </a>
 

@@ -25,11 +25,13 @@ if ($action === 'upload_document') {
     }
 
     $file = $_FILES['document'];
-    $maxSize = 5 * 1024 * 1024;
+    
+    // File Security & Validation
+    $maxSize = 5 * 1024 * 1024; // 5MB
     $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
 
     if ($file['size'] > $maxSize) {
-        set_flash('error', 'File too large. Max 5MB.');
+        set_flash('error', 'File is too large. Maximum size is 5MB.');
         redirect('/PractiTrack/student/documents.php');
     }
 
@@ -39,28 +41,39 @@ if ($action === 'upload_document') {
         redirect('/PractiTrack/student/documents.php');
     }
 
+    // Ensure the upload directory exists
     $uploadDir = __DIR__ . '/../../assets/uploads/documents/';
-    if (!is_dir($uploadDir)) mkdir($uploadDir, 0775, true);
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0775, true);
+    }
 
+    // Generate a unique file name
     $newName = 'doc_' . $studentId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
     $dest = $uploadDir . $newName;
 
+    // Move file to folder
     if (!move_uploaded_file($file['tmp_name'], $dest)) {
-        set_flash('error', 'Failed to save file.');
+        set_flash('error', 'Failed to save the file on the server. Check folder permissions.');
         redirect('/PractiTrack/student/documents.php');
     }
 
-    $stmt = $pdo->prepare("INSERT INTO documents (student_id, doc_type, file_name, file_path, file_size)
-                           VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute([
-        $studentId,
-        $docType,
-        $file['name'],
-        'assets/uploads/documents/' . $newName,
-        $file['size']
-    ]);
+    // Save to Database
+    try {
+        $stmt = $pdo->prepare("INSERT INTO documents (student_id, doc_type, file_name, file_path, file_size, status) 
+                               VALUES (?, ?, ?, ?, ?, 'pending')");
+        $stmt->execute([
+            $studentId,
+            $docType,
+            $file['name'],
+            'assets/uploads/documents/' . $newName,
+            $file['size']
+        ]);
 
-    set_flash('success', 'Document uploaded successfully!');
+        set_flash('success', 'Document uploaded successfully! Waiting for Instructor approval.');
+    } catch (Exception $e) {
+        set_flash('error', 'Failed to save record to database: ' . $e->getMessage());
+    }
+
     redirect('/PractiTrack/student/documents.php');
 }
 
