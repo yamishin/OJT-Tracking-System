@@ -1,19 +1,29 @@
 <?php
 require_once __DIR__ . '/../includes/admin-layout.php';
 
-// Fetch companies
+// Fetch companies and count assigned students
 $stmt = $pdo->query("
     SELECT u.id, u.first_name, u.last_name, u.email, u.is_active, 
            cp.company_name, cp.industry, cp.is_partner, cp.description, 
            cp.available_positions, cp.address, cp.website, cp.hr_contact_person, cp.social_media,
            cp.max_slots, cp.requirements,
-           (SELECT COUNT(*) FROM student_profiles WHERE company_id = u.id) as student_count
+           (SELECT COUNT(*) FROM student_profiles WHERE company_id = u.id AND application_status = 'accepted') as student_count
     FROM users u
     JOIN company_profiles cp ON cp.user_id = u.id
     WHERE u.role = 'company'
     ORDER BY cp.company_name ASC
 ");
 $companies = $stmt->fetchAll();
+
+// Fetch all students assigned to companies (we will filter this in JS for the modal)
+$stmt = $pdo->query("
+    SELECT u.id, u.first_name, u.last_name, u.email, sp.student_no, sp.course, sp.company_id, sp.application_status,
+    (SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = u.id) as rendered_hours
+    FROM users u
+    JOIN student_profiles sp ON sp.user_id = u.id
+    WHERE sp.company_id IS NOT NULL
+");
+$all_students = $stmt->fetchAll();
 
 admin_layout_top('Company Partners', 'Manage OJT host companies');
 ?>
@@ -24,6 +34,43 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 <?php if ($msg = get_flash('error')): ?>
     <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
+
+<style>
+    /* Enhanced Modal Styles */
+    .view-modal-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    .view-section h4 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--gray-400);
+        margin-bottom: 8px;
+        font-weight: 700;
+    }
+    .view-section p {
+        font-size: 14px;
+        color: var(--gray-800);
+        line-height: 1.6;
+    }
+    .info-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--gray-100);
+        padding: 6px 12px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        color: var(--gray-600);
+        font-weight: 600;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+    .info-pill i { color: var(--light-blue-dark); }
+</style>
 
 <div class="panel">
     <div class="panel-header" style="flex-wrap: wrap; gap: 10px;">
@@ -44,8 +91,6 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                     <option value="0">Standard Companies</option>
                 </select>
             </div>
-            
-            <!-- Add Company Button -->
             <button type="button" class="btn btn-primary" onclick="openAddModal()" style="background:var(--gray-800);">
                 <i class="fas fa-plus"></i> Add Company
             </button>
@@ -79,7 +124,7 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                                 </td>
                                 <td>
                                     <span class="badge" style="background:#E2E8F0; color:#1E293B;">
-                                        <?= $c['student_count'] ?> / <?= $c['max_slots'] ?? '1' ?> Slots
+                                        <i class="fas fa-users"></i> <?= $c['student_count'] ?> / <?= $c['max_slots'] ?? '1' ?>
                                     </span>
                                 </td>
                                 <td>
@@ -91,10 +136,12 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                                 </td>
                                 <td>
                                     <div style="display:flex; gap:6px;">
-                                        <button type="button" class="btn btn-sm" style="background:#F1F5F9; color:#1E293B;" onclick='viewCompany(<?= json_encode($c) ?>)'>
+                                        <!-- VIEW BUTTON (Passes students data directly to JS) -->
+                                        <button type="button" class="btn btn-sm" style="background:#F1F5F9; color:#1E293B;" onclick='viewCompany(<?= json_encode($c) ?>, <?= json_encode($all_students) ?>)'>
                                             <i class="fas fa-eye"></i> View
                                         </button>
                                         
+                                        <!-- EDIT BUTTON -->
                                         <button type="button" class="btn btn-sm" style="background:#E0F2FE; color:#0284C7;" onclick='editCompany(<?= json_encode($c) ?>)'>
                                             <i class="fas fa-edit"></i> Edit
                                         </button>
@@ -110,7 +157,78 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 </div>
 
 <!-- ========================================== -->
-<!-- ADD COMPANY MODAL (NEW) -->
+<!-- ENHANCED VIEW COMPANY MODAL -->
+<!-- ========================================== -->
+<div class="modal-overlay" id="viewModal">
+    <div class="modal-box" style="max-width: 750px; padding: 0;">
+        <div class="modal-header">
+            <h3><i class="fas fa-building"></i> <span id="v_name"></span></h3>
+            <button class="modal-close" onclick="closeModal('viewModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            
+            <!-- Quick Info Pills -->
+            <div style="margin-bottom: 20px;">
+                <span class="info-pill" id="v_industry"><i class="fas fa-industry"></i> </span>
+                <span class="info-pill" id="v_hr"><i class="fas fa-user-tie"></i> </span>
+                <span class="info-pill" id="v_website"><i class="fas fa-globe"></i> </span>
+            </div>
+
+            <div class="view-modal-grid">
+                <div class="view-section">
+                    <h4>Address & Contact</h4>
+                    <p id="v_address" style="margin-bottom: 10px;"></p>
+                    <p id="v_social" style="margin-bottom: 0;"></p>
+                </div>
+                <div class="view-section">
+                    <h4>Available Positions</h4>
+                    <p id="v_positions"></p>
+                </div>
+            </div>
+
+            <div class="view-section" style="margin-bottom: 24px;">
+                <h4>Company Description</h4>
+                <p id="v_description"></p>
+            </div>
+
+            <div class="view-section" style="margin-bottom: 24px;">
+                <h4>Requirements</h4>
+                <p id="v_requirements"></p>
+            </div>
+
+            <hr style="border:0; border-top: 2px dashed var(--gray-200); margin: 24px 0;">
+
+            <!-- Assigned Students Table -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="font-size: 16px; color: var(--gray-800); font-family: var(--font-heading);"><i class="fas fa-user-graduate" style="color: var(--light-blue-dark);"></i> Assigned Students</h4>
+                <span class="badge" style="background: var(--light-blue-light); color: var(--light-blue-dark);" id="v_student_count">0 Students</span>
+            </div>
+
+            <div class="table-wrap" style="border: 1px solid var(--gray-200); border-radius: var(--radius-sm); overflow: hidden;">
+                <table class="data-table" style="font-size: 13px;">
+                    <thead style="background: var(--gray-100);">
+                        <tr>
+                            <th>Name</th>
+                            <th>Course</th>
+                            <th>Progress</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="v_student_list">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-sm" onclick="closeModal('viewModal')" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- ADD COMPANY MODAL (Same as before) -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="addModal">
     <div class="modal-box" style="max-width: 650px; padding: 0;">
@@ -144,22 +262,18 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                             <option value="0">Standard (Hidden from Students)</option>
                         </select>
                     </div>
-                    
                     <div class="field full">
                         <label>Description</label>
                         <textarea name="description" style="min-height: 60px;"></textarea>
                     </div>
-                    
                     <div class="field full">
                         <label>Available Positions</label>
                         <input type="text" name="available_positions" placeholder="e.g. Web Developer, IT Support">
                     </div>
-
                     <div class="field full">
                         <label>Requirements</label>
                         <textarea name="requirements" style="min-height: 60px;"></textarea>
                     </div>
-                    
                     <div class="field">
                         <label>Address</label>
                         <input type="text" name="address">
@@ -168,7 +282,6 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                         <label>Website</label>
                         <input type="text" name="website">
                     </div>
-                    
                     <div class="field">
                         <label>HR / Contact Person</label>
                         <input type="text" name="hr_contact_person">
@@ -177,7 +290,6 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                         <label>Social Media / Email</label>
                         <input type="text" name="social_media">
                     </div>
-
                     <div class="field full" style="border-top: 1px dashed var(--gray-300); padding-top: 16px; margin-top: 8px;">
                         <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--gray-800);"><i class="fas fa-user-lock"></i> Login Credentials</h4>
                         <div class="form-grid">
@@ -186,15 +298,14 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                                 <input type="email" name="email" required>
                             </div>
                             <div class="field">
-                                <label>First Name (Representative)</label>
+                                <label>First Name (Rep)</label>
                                 <input type="text" name="first_name" required>
                             </div>
                             <div class="field">
-                                <label>Last Name (Representative)</label>
+                                <label>Last Name (Rep)</label>
                                 <input type="text" name="last_name" required>
                             </div>
                         </div>
-                        <div class="form-hint"><em>Default password will be <strong>PractiTrack2026</strong>.</em></div>
                     </div>
                 </div>
             </div>
@@ -208,48 +319,7 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 </div>
 
 <!-- ========================================== -->
-<!-- VIEW COMPANY MODAL -->
-<!-- ========================================== -->
-<div class="modal-overlay" id="viewModal">
-    <div class="modal-box" style="max-width: 600px;">
-        <div class="modal-header">
-            <h3><i class="fas fa-building"></i> <span id="v_name"></span></h3>
-            <button class="modal-close" onclick="closeModal('viewModal')"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="modal-body" style="padding: 24px;">
-            <p style="font-size:14px; font-weight:600; color:var(--gray-600); margin-bottom:20px;" id="v_industry"></p>
-            
-            <h4 style="margin-bottom:8px; font-size:15px;">About the Company</h4>
-            <p id="v_description" style="font-size:14px; color:var(--gray-800); margin-bottom:20px; line-height:1.6;"></p>
-            
-            <div class="grid-2" style="gap:16px;">
-                <div>
-                    <h4 style="margin-bottom:8px; font-size:15px;">Contact Info</h4>
-                    <p style="font-size:13px; margin-bottom:6px;"><i class="fas fa-map-marker-alt" style="color:var(--gray-400); width:16px;"></i> <span id="v_address"></span></p>
-                    <p style="font-size:13px; margin-bottom:6px;"><i class="fas fa-globe" style="color:var(--gray-400); width:16px;"></i> <span id="v_website"></span></p>
-                    <p style="font-size:13px;"><i class="fas fa-envelope" style="color:var(--gray-400); width:16px;"></i> <span id="v_social"></span></p>
-                </div>
-                <div>
-                    <h4 style="margin-bottom:8px; font-size:15px;">HR / Contact Person</h4>
-                    <p style="font-size:13px; margin-bottom:6px;"><i class="fas fa-user-tie" style="color:var(--gray-400); width:16px;"></i> <span id="v_hr"></span></p>
-                    <p style="font-size:13px; margin-bottom:6px;"><i class="fas fa-users" style="color:var(--gray-400); width:16px;"></i> Max Slots: <span id="v_slots"></span></p>
-                </div>
-            </div>
-            
-            <h4 style="margin-top:20px; margin-bottom:8px; font-size:15px;">Available Positions</h4>
-            <p style="font-size:14px;"><span id="v_positions"></span></p>
-
-            <h4 style="margin-top:20px; margin-bottom:8px; font-size:15px;">Requirements</h4>
-            <p style="font-size:14px;"><span id="v_requirements"></span></p>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-sm" onclick="closeModal('viewModal')" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
-        </div>
-    </div>
-</div>
-
-<!-- ========================================== -->
-<!-- EDIT COMPANY MODAL -->
+<!-- EDIT COMPANY MODAL (Same as before) -->
 <!-- ========================================== -->
 <div class="modal-overlay" id="editModal">
     <div class="modal-box" style="max-width: 650px; padding: 0;">
@@ -280,26 +350,22 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                     <div class="field full">
                         <label>Partner Status</label>
                         <select name="is_partner" id="e_partner">
-                            <option value="1">Official Partner (Visible to Students)</option>
-                            <option value="0">Standard (Hidden from Students)</option>
+                            <option value="1">Official Partner</option>
+                            <option value="0">Standard</option>
                         </select>
                     </div>
-                    
                     <div class="field full">
                         <label>Description</label>
                         <textarea name="description" id="e_description" style="min-height: 80px;"></textarea>
                     </div>
-                    
                     <div class="field full">
                         <label>Available Positions</label>
                         <input type="text" name="available_positions" id="e_positions">
                     </div>
-
                     <div class="field full">
                         <label>Requirements</label>
                         <textarea name="requirements" id="e_requirements" style="min-height: 60px;"></textarea>
                     </div>
-                    
                     <div class="field">
                         <label>Address</label>
                         <input type="text" name="address" id="e_address">
@@ -308,7 +374,6 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
                         <label>Website</label>
                         <input type="text" name="website" id="e_website">
                     </div>
-                    
                     <div class="field">
                         <label>HR / Contact Person</label>
                         <input type="text" name="hr_contact_person" id="e_hr">
@@ -329,21 +394,65 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
 </div>
 
 <script>
-    // --- Modals ---
     function openAddModal() { document.getElementById('addModal').classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-    function viewCompany(data) {
+    // Enhanced View Logic
+    function viewCompany(data, allStudents) {
+        // Populate basic info
         document.getElementById('v_name').textContent = data.company_name;
-        document.getElementById('v_industry').textContent = data.industry || 'Industry not specified';
+        document.getElementById('v_industry').innerHTML = `<i class="fas fa-industry"></i> ${data.industry || 'N/A'}`;
+        document.getElementById('v_hr').innerHTML = `<i class="fas fa-user-tie"></i> ${data.hr_contact_person || 'N/A'}`;
+        document.getElementById('v_website').innerHTML = `<i class="fas fa-globe"></i> ${data.website || 'N/A'}`;
+        
+        document.getElementById('v_address').innerHTML = `<strong>Address:</strong> ${data.address || 'Not specified'}`;
+        document.getElementById('v_social').innerHTML = `<strong>Email/Social:</strong> ${data.social_media || 'Not specified'}`;
+        
+        document.getElementById('v_positions').textContent = data.available_positions || 'None specified.';
         document.getElementById('v_description').textContent = data.description || 'No description provided.';
-        document.getElementById('v_address').textContent = data.address || 'Not specified';
-        document.getElementById('v_website').textContent = data.website || 'Not specified';
-        document.getElementById('v_social').textContent = data.social_media || 'Not specified';
-        document.getElementById('v_hr').textContent = data.hr_contact_person || 'Not specified';
-        document.getElementById('v_positions').textContent = data.available_positions || 'Not specified';
         document.getElementById('v_requirements').textContent = data.requirements || 'No specific requirements listed.';
-        document.getElementById('v_slots').textContent = data.max_slots || '1';
+
+        // Filter students assigned to this specific company
+        const companyStudents = allStudents.filter(s => s.company_id == data.id);
+        
+        const tbody = document.getElementById('v_student_list');
+        document.getElementById('v_student_count').textContent = `${companyStudents.length} Students`;
+
+        if (companyStudents.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--gray-400);">No students assigned to this company yet.</td></tr>`;
+        } else {
+            let html = '';
+            companyStudents.forEach(s => {
+                const progress = s.required_hours > 0 ? Math.min(100, Math.round((s.rendered_hours / s.required_hours) * 100)) : 0;
+                
+                // Determine status badge
+                let statusBadge = '';
+                if (s.application_status === 'accepted') statusBadge = '<span class="badge approved">Accepted</span>';
+                else if (s.application_status === 'pending') statusBadge = '<span class="badge pending">Pending</span>';
+                else statusBadge = `<span class="badge rejected">${s.application_status}</span>`;
+
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${s.first_name} ${s.last_name}</strong><br>
+                            <small style="color:var(--gray-400);">${s.student_no || 'No USN'}</small>
+                        </td>
+                        <td>${s.course || '—'}</td>
+                        <td>
+                            <div style="font-size:11px; font-weight:600; margin-bottom:2px;">${progress}%</div>
+                            <div class="progress-block" style="margin:0;">
+                                <div class="pb-bar" style="height:4px;">
+                                    <div class="pb-fill" style="width: ${progress}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
         document.getElementById('viewModal').classList.add('open');
     }
 
@@ -363,7 +472,7 @@ admin_layout_top('Company Partners', 'Manage OJT host companies');
         document.getElementById('editModal').classList.add('open');
     }
 
-    // --- Search & Filter Logic ---
+    // Search & Filter
     const searchInput = document.getElementById('searchCompany');
     const filterSelect = document.getElementById('filterStatus');
     const rows = document.querySelectorAll('.company-row');

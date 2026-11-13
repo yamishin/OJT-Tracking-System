@@ -14,17 +14,20 @@ $action = $_POST['action'] ?? '';
 if ($action === 'add') {
     $code = trim($_POST['code']);
     $name = trim($_POST['name']);
+    $duration = (int)$_POST['duration_hours'];
+    $yearLevel = trim($_POST['year_level']);
+    $academicYear = trim($_POST['academic_year']);
 
-    if ($code && $name) {
+    if ($code && $name && $duration && $yearLevel && $academicYear) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO courses (code, name) VALUES (?, ?)");
-            $stmt->execute([$code, $name]);
+            $stmt = $pdo->prepare("INSERT INTO courses (code, name, duration_hours, year_level, academic_year) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$code, $name, $duration, $yearLevel, $academicYear]);
             set_flash('success', 'Course added successfully.');
         } catch (Exception $e) {
             set_flash('error', 'Failed to add course. The Course Code might already exist.');
         }
     } else {
-        set_flash('error', 'Please fill in both Course Code and Name.');
+        set_flash('error', 'Please fill in all fields.');
     }
     redirect('/PractiTrack/admin/courses.php');
 }

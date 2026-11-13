@@ -1,14 +1,11 @@
 <?php
 require_once __DIR__ . '/../includes/company-layout.php';
-
 $companyId = $_SESSION['user_id'];
 
-// Total assigned students
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM student_profiles WHERE company_id = ?");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM student_profiles WHERE company_id = ? AND application_status = 'accepted'");
 $stmt->execute([$companyId]);
 $totalStudents = (int)$stmt->fetchColumn();
 
-// Pending evaluations (submitted weekly reports from their students)
 $stmt = $pdo->prepare("
     SELECT COUNT(*) FROM weekly_reports wr
     JOIN student_profiles sp ON sp.user_id = wr.student_id
@@ -36,9 +33,7 @@ company_layout_top('Dashboard', 'Overview of your OJT interns');
 </div>
 
 <div class="panel">
-    <div class="panel-header">
-        <h3>Quick Actions</h3>
-    </div>
+    <div class="panel-header"><h3>Quick Actions</h3></div>
     <div class="panel-body">
         <p style="margin-bottom: 16px; color: var(--gray-600);">Manage your interns, review their weekly reports, and complete their final evaluations.</p>
         <a href="/PractiTrack/company/students.php" class="btn btn-primary">View My Students</a>

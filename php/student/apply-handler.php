@@ -23,12 +23,13 @@ if ($currentStatus === 'pending' || $currentStatus === 'accepted') {
 $stmt = $pdo->prepare("UPDATE student_profiles SET company_id = ?, application_status = 'pending' WHERE user_id = ?");
 $stmt->execute([$companyId, $studentId]);
 
-// Notify Admin
+// NOTIFY ADMIN
 $stmt = $pdo->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
 $adminId = $stmt->fetchColumn();
 if ($adminId) {
-    $pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'New OJT Application', 'A student has applied to a company. Please review.', 'info')")
-        ->execute([$adminId]);
+    $studentName = $_SESSION['name'] ?? 'A student';
+    $pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'New OJT Application', ?, 'info')")
+        ->execute([$adminId, "$studentName has applied to a company. Please review."]);
 }
 
 set_flash('success', 'Application submitted! Please wait for the Admin to approve it.');

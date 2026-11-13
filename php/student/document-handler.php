@@ -69,6 +69,15 @@ if ($action === 'upload_document') {
             $file['size']
         ]);
 
+        // NOTIFY ADMIN
+        $stmt = $pdo->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+        $adminId = $stmt->fetchColumn();
+        if ($adminId) {
+            $studentName = $_SESSION['name'] ?? 'A student';
+            $pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'New Document Uploaded', ?, 'info')")
+                ->execute([$adminId, "$studentName has uploaded a new document ($docType) for review."]);
+        }
+
         set_flash('success', 'Document uploaded successfully! Waiting for Instructor approval.');
     } catch (Exception $e) {
         set_flash('error', 'Failed to save record to database: ' . $e->getMessage());

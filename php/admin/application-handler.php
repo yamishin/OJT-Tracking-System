@@ -15,13 +15,21 @@ $decision  = $_POST['decision']; // 'accepted' or 'rejected'
 $stmt = $pdo->prepare("UPDATE student_profiles SET application_status = ? WHERE user_id = ?");
 $stmt->execute([$decision, $studentId]);
 
-// Notify student
+// NOTIFY STUDENT
 $msg = ($decision === 'accepted') 
     ? "Congratulations! Your application has been approved. You can now access your dashboard." 
     : "We regret to inform you that your application was rejected. Please apply to another company.";
 
 $pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)")
     ->execute([$studentId, "Application $decision", $msg, ($decision === 'accepted' ? 'success' : 'warning')]);
+
+// NOTIFY COMPANY
+$msgCompany = ($decision === 'accepted') 
+    ? "A student has been officially assigned to your company." 
+    : "A student application for your company was rejected.";
+
+$pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, 'Student Application Update', ?, 'info')")
+    ->execute([$companyId, $msgCompany]);
 
 set_flash('success', "Student application has been $decision.");
 redirect('/PractiTrack/admin/applications.php');

@@ -7,13 +7,15 @@ $userName = $_SESSION['name'] ?? 'Administrator';
 $initials = strtoupper(substr($userName, 0, 1));
 $currentPage = basename($_SERVER['PHP_SELF']);
 
-function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
-{
-    global $userName, $initials, $currentPage;
-?>
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+$stmt->execute([$_SESSION['user_id']]);
+$unreadCount = (int)$stmt->fetchColumn();
+
+function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '') {
+    global $userName, $initials, $currentPage, $unreadCount;
+    ?>
     <!DOCTYPE html>
     <html lang="en">
-
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,32 +24,14 @@ function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
         <link rel="stylesheet" href="/PractiTrack/assets/css/student.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            /* Dark Slate Theme for Admin */
-            .sidebar {
-                background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
-            }
-
-            .sidebar-brand .logo-mark {
-                background: var(--red);
-                color: var(--white);
-            }
-
-            .sidebar-menu a.active::before {
-                background: var(--red);
-            }
-
-            .sidebar-menu a.active {
-                color: #1E293B;
-            }
-
-            .user-chip .avatar {
-                background: #1E293B !important;
-            }
+            .sidebar { background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%); } 
+            .sidebar-brand .logo-mark { background: var(--red); color: var(--white); }
+            .sidebar-menu a.active::before { background: var(--red); }
+            .sidebar-menu a.active { color: #1E293B; }
+            .user-chip .avatar { background: #1E293B !important; }
         </style>
     </head>
-
     <body>
-
         <div class="app-shell">
             <aside class="sidebar" id="sidebar">
                 <div class="sidebar-brand">
@@ -75,6 +59,12 @@ function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
                     <a href="/PractiTrack/admin/courses.php" class="<?= $currentPage === 'courses.php' ? 'active' : '' ?>">
                         <span class="icon"><i class="fas fa-book"></i></span> Manage Courses
                     </a>
+                    <a href="/PractiTrack/admin/notification.php" class="<?= $currentPage === 'notification.php' ? 'active' : '' ?>">
+                        <span class="icon"><i class="fas fa-bell"></i></span> Notifications
+                        <?php if ($unreadCount > 0): ?>
+                            <span class="badge-count"><?= $unreadCount ?></span>
+                        <?php endif; ?>
+                    </a>
                     <a href="/PractiTrack/logout.php">
                         <span class="icon"><i class="fas fa-sign-out-alt"></i></span> Logout
                     </a>
@@ -94,6 +84,10 @@ function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
                         </div>
                     </div>
                     <div class="topbar-right">
+                        <a href="/PractiTrack/admin/notification.php" class="topbar-icon" title="Notifications">
+                            <i class="fas fa-bell"></i>
+                            <?php if ($unreadCount > 0): ?><span class="dot"></span><?php endif; ?>
+                        </a>
                         <div class="user-chip">
                             <div class="avatar" style="background:#1E293B;"><?= e($initials) ?></div>
                             <div class="info">
@@ -107,15 +101,13 @@ function admin_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '')
                 <?php
             }
 
-            function admin_layout_bottom()
-            {
+            function admin_layout_bottom() {
                 ?>
                 </main>
             </div>
         </div>
         <script src="/PractiTrack/assets/js/student.js"></script>
     </body>
-
     </html>
-<?php
-            }
+    <?php
+}

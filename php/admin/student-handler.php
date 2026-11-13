@@ -17,8 +17,9 @@ if ($action === 'add_student') {
     $email = trim($_POST['email']);
     $studentNo = trim($_POST['student_no']);
     $course = trim($_POST['course']);
+    $academicYear = trim($_POST['academic_year'] ?? '2025-2026');
     $requiredHours = (int)$_POST['required_hours'];
-    
+
     $generatedPassword = 'PractiTrack2026';
     $hash = password_hash($generatedPassword, PASSWORD_DEFAULT);
 
@@ -44,8 +45,8 @@ if ($action === 'add_student') {
         $stmt->execute([$firstName, $lastName, $email, $hash]);
         $userId = $pdo->lastInsertId();
 
-        $stmt = $pdo->prepare("INSERT INTO student_profiles (user_id, student_no, course, required_hours) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$userId, $studentNo, $course, $requiredHours]);
+        $stmt = $pdo->prepare("INSERT INTO student_profiles (user_id, student_no, course, academic_year, required_hours) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $studentNo, $course, $academicYear, $requiredHours]);
 
         $pdo->commit();
         set_flash('success', "Student account created!<br><br><strong>Email:</strong> $email<br><strong>USN:</strong> $studentNo<br><strong>Password:</strong> $generatedPassword");
