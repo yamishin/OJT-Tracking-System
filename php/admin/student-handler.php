@@ -10,7 +10,9 @@ if (!verify_csrf($_POST['csrf_token'] ?? '')) {
 
 $action = $_POST['action'] ?? '';
 
-//  ADD NEW STUDENT
+// ============================================
+// 1. ADD NEW STUDENT
+// ============================================
 if ($action === 'add_student') {
     $firstName = trim($_POST['first_name']);
     $lastName = trim($_POST['last_name']);
@@ -19,6 +21,10 @@ if ($action === 'add_student') {
     $course = trim($_POST['course']);
     $academicYear = trim($_POST['academic_year'] ?? '2025-2026');
     $requiredHours = (int)$_POST['required_hours'];
+    
+    // Default schedule if not provided
+    $shiftStart = $_POST['shift_start'] ?? '08:00';
+    $shiftEnd = $_POST['shift_end'] ?? '17:00';
 
     $generatedPassword = 'PractiTrack2026';
     $hash = password_hash($generatedPassword, PASSWORD_DEFAULT);
@@ -41,12 +47,14 @@ if ($action === 'add_student') {
     try {
         $pdo->beginTransaction();
 
+        // Create User
         $stmt = $pdo->prepare("INSERT INTO users (role, first_name, last_name, email, password_hash) VALUES ('student', ?, ?, ?, ?)");
         $stmt->execute([$firstName, $lastName, $email, $hash]);
         $userId = $pdo->lastInsertId();
 
-        $stmt = $pdo->prepare("INSERT INTO student_profiles (user_id, student_no, course, academic_year, required_hours) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$userId, $studentNo, $course, $academicYear, $requiredHours]);
+        // Create Profile (with shift schedule)
+        $stmt = $pdo->prepare("INSERT INTO student_profiles (user_id, student_no, course, academic_year, required_hours, shift_start, shift_end) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $studentNo, $course, $academicYear, $requiredHours, $shiftStart, $shiftEnd]);
 
         $pdo->commit();
         set_flash('success', "Student account created!<br><br><strong>Email:</strong> $email<br><strong>USN:</strong> $studentNo<br><strong>Password:</strong> $generatedPassword");
@@ -58,8 +66,9 @@ if ($action === 'add_student') {
     redirect('/PractiTrack/admin/students.php');
 }
 
-
-//  TOGGLE ACTIVE STATUS 
+// ============================================
+// 2. TOGGLE ACTIVE STATUS
+// ============================================
 if ($action === 'toggle_active') {
     $studentId = (int)$_POST['student_id'];
     $currentStatus = (int)$_POST['current_status'];

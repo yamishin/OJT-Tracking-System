@@ -1,17 +1,29 @@
 <?php
 require_once __DIR__ . '/../includes/admin-layout.php';
 
+// 1. Fetch Pending Applications
 $stmt = $pdo->query("
-    SELECT u.id, u.first_name, u.last_name, sp.student_no, sp.course, cp.company_name, sp.company_id
+    SELECT u.id, u.first_name, u.last_name, sp.student_no, sp.course, cp.company_name, sp.company_id, sp.application_status
     FROM users u
     JOIN student_profiles sp ON sp.user_id = u.id
     JOIN company_profiles cp ON cp.user_id = sp.company_id
     WHERE sp.application_status = 'pending'
     ORDER BY u.last_name ASC
 ");
-$applications = $stmt->fetchAll();
+$pendingApps = $stmt->fetchAll();
 
-admin_layout_top('OJT Applications', 'Review student applications for company assignment');
+// 2. Fetch Application History (Accepted or Rejected)
+$stmt = $pdo->query("
+    SELECT u.id, u.first_name, u.last_name, sp.student_no, sp.course, cp.company_name, sp.application_status
+    FROM users u
+    JOIN student_profiles sp ON sp.user_id = u.id
+    JOIN company_profiles cp ON cp.user_id = sp.company_id
+    WHERE sp.application_status IN ('accepted', 'rejected')
+    ORDER BY u.last_name ASC
+");
+$historyApps = $stmt->fetchAll();
+
+admin_layout_top('OJT Applications', 'Review student applications and view history');
 ?>
 
 <?php if ($msg = get_flash('success')): ?>
@@ -21,10 +33,11 @@ admin_layout_top('OJT Applications', 'Review student applications for company as
     <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
-<div class="panel">
+<!-- PENDING APPLICATIONS -->
+<div class="panel" style="border-top: 4px solid var(--warning);">
     <div class="panel-header">
-        <h3>Pending Applications</h3>
-        <div class="sub"><?= count($applications) ?> student(s) waiting</div>
+        <h3><i class="fas fa-clock" style="color: var(--warning);"></i> Pending Applications</h3>
+        <div class="sub"><?= count($pendingApps) ?> student(s) waiting</div>
     </div>
     <div class="panel-body no-pad">
         <div class="table-wrap">
@@ -38,10 +51,10 @@ admin_layout_top('OJT Applications', 'Review student applications for company as
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($applications)): ?>
+                    <?php if (empty($pendingApps)): ?>
                         <tr><td colspan="4" class="empty">No pending applications.</td></tr>
                     <?php else: ?>
-                        <?php foreach ($applications as $app): ?>
+                        <?php foreach ($pendingApps as $app): ?>
                             <tr>
                                 <td><strong><?= e($app['first_name'] . ' ' . $app['last_name']) ?></strong></td>
                                 <td><?= e($app['student_no']) ?> <br><small style="color:var(--gray-400);"><?= e($app['course']) ?></small></td>
@@ -51,9 +64,51 @@ admin_layout_top('OJT Applications', 'Review student applications for company as
                                         <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                         <input type="hidden" name="student_id" value="<?= $app['id'] ?>">
                                         <input type="hidden" name="company_id" value="<?= $app['company_id'] ?>">
-                                        <button type="submit" name="decision" value="accepted" class="btn btn-sm" style="background:#E8F5E9; color:#1B5E20;">Approve</button>
-                                        <button type="submit" name="decision" value="rejected" class="btn btn-sm" style="background:var(--red-light); color:var(--red-dark);">Reject</button>
+                                        <button type="submit" name="decision" value="accepted" class="btn btn-sm" style="background:#E8F5E9; color:#1B5E20;"><i class="fas fa-check"></i> Approve</button>
+                                        <button type="submit" name="decision" value="rejected" class="btn btn-sm" style="background:var(--red-light); color:var(--red-dark);"><i class="fas fa-times"></i> Reject</button>
                                     </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- APPLICATION HISTORY -->
+<div class="panel">
+    <div class="panel-header">
+        <h3><i class="fas fa-history"></i> Application History</h3>
+        <div class="sub"><?= count($historyApps) ?> processed application(s)</div>
+    </div>
+    <div class="panel-body no-pad">
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Student Name</th>
+                        <th>USN / Course</th>
+                        <th>Company</th>
+                        <th>Final Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($historyApps)): ?>
+                        <tr><td colspan="4" class="empty">No application history yet.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($historyApps as $app): ?>
+                            <tr>
+                                <td><strong><?= e($app['first_name'] . ' ' . $app['last_name']) ?></strong></td>
+                                <td><?= e($app['student_no']) ?> <br><small style="color:var(--gray-400);"><?= e($app['course']) ?></small></td>
+                                <td><span style="font-weight:600; color:#0F766E;"><?= e($app['company_name']) ?></span></td>
+                                <td>
+                                    <?php if ($app['application_status'] === 'accepted'): ?>
+                                        <span class="badge approved"><i class="fas fa-check-circle"></i> Accepted</span>
+                                    <?php else: ?>
+                                        <span class="badge rejected"><i class="fas fa-times-circle"></i> Rejected</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

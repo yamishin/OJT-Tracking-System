@@ -22,25 +22,18 @@ if ($action === 'log_attendance') {
         redirect('/PractiTrack/student/attendance.php');
     }
 
-    // Convert times to timestamps
     $start = strtotime($timeIn);
     $end = strtotime($timeOut);
 
-    // 1. Punctuality Logic (Based on actual time in)
+    // 1. Punctuality
     $inHour = (int)date('H', $start);
     $inMinute = (int)date('i', $start);
-
     $punctuality = 'On Time';
-    if ($inHour < 8) {
-        $punctuality = 'Early';
-    } elseif ($inHour == 8 && $inMinute > 0) {
-        $punctuality = 'Late';
-    } elseif ($inHour > 8) {
-        $punctuality = 'Late';
-    }
+    if ($inHour < 8) { $punctuality = 'Early'; }
+    elseif ($inHour == 8 && $inMinute > 0) { $punctuality = 'Late'; }
+    elseif ($inHour > 8) { $punctuality = 'Late'; }
 
     // 2. STRICT 8:00 AM START RULE
-    // If they time in before 8:00 AM, we force the start time to exactly 8:00 AM for calculation
     $standardStart = strtotime(date('Y-m-d', $start) . ' 08:00:00');
     if ($start < $standardStart) {
         $start = $standardStart;
@@ -63,18 +56,14 @@ if ($action === 'log_attendance') {
 
     // 5. Calculate RAW hours
     $rawHours = ($end - $start) / 3600;
-
     $finalHours = $rawHours;
     $overtimeHours = 0;
     $status = '';
     $lunchDeducted = 0;
 
-    // Deduct lunch if 8+ hours
     if ($rawHours >= 8) {
         $finalHours = $rawHours - 1;
         $lunchDeducted = 1;
-
-        // Separate overtime (anything over 8 hours after lunch deduction)
         if ($finalHours > 8) {
             $overtimeHours = $finalHours - 8;
             $finalHours = 8;
@@ -85,7 +74,6 @@ if ($action === 'log_attendance') {
         $status = 'Undertime';
     }
 
-    // 6. Status Label Logic
     if ($isExceeded) {
         $status = 'Exceeded Overtime';
     } elseif ($outHour == 19 && $outMinute == 0) {
@@ -98,11 +86,12 @@ if ($action === 'log_attendance') {
     $overtimeHours = round($overtimeHours, 2);
 
     try {
-        $stmt = $pdo->prepare("INSERT INTO attendance (student_id, log_date, time_in, time_out, total_hours, overtime_hours, lunch_deducted, status, punctuality, remarks)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        // Added overtime_hours to the SQL query
+        $stmt = $pdo->prepare("INSERT INTO attendance (student_id, log_date, time_in, time_out, total_hours, overtime_hours, lunch_deducted, status, punctuality, remarks, verification_status)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
                                ON DUPLICATE KEY UPDATE time_in=VALUES(time_in), time_out=VALUES(time_out),
                                total_hours=VALUES(total_hours), overtime_hours=VALUES(overtime_hours), lunch_deducted=VALUES(lunch_deducted), 
-                               status=VALUES(status), punctuality=VALUES(punctuality), remarks=VALUES(remarks)");
+                               status=VALUES(status), punctuality=VALUES(punctuality), remarks=VALUES(remarks), verification_status='pending'");
 
         $stmt->execute([$studentId, $logDate, $timeIn, $timeOut, $finalHours, $overtimeHours, $lunchDeducted, $status, $punctuality, $remarks]);
 

@@ -3,17 +3,26 @@ require_once __DIR__ . '/../includes/student-layout.php';
 
 $studentId = $_SESSION['user_id'];
 
+// Fetch Student Schedule
+$stmt = $pdo->prepare("SELECT shift_start, shift_end FROM student_profiles WHERE user_id = ?");
+$stmt->execute([$studentId]);
+$schedule = $stmt->fetch();
+$shiftStart = $schedule['shift_start'] ?? '08:00:00';
+$shiftEnd = $schedule['shift_end'] ?? '17:00:00';
+
 $stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY log_date DESC");
 $stmt->execute([$studentId]);
 $records = $stmt->fetchAll();
 
-$stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ?");
+// Total VERIFIED hours only
+$stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ? AND verification_status = 'verified'");
 $stmt->execute([$studentId]);
 $totalHours = (float)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT COALESCE(SUM(overtime_hours),0) FROM attendance WHERE student_id = ?");
+// Total PENDING hours (To show as grey/uncounted)
+$stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ? AND verification_status = 'pending'");
 $stmt->execute([$studentId]);
-$totalOvertime = (float)$stmt->fetchColumn();
+$pendingHours = (float)$stmt->fetchColumn();
 
 student_layout_top('Attendance', 'Log your daily time in and time out');
 ?>
@@ -25,16 +34,29 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     <div class="alert alert-error"><i class="fas fa-exclamation-triangle"></i><span><?= e($msg) ?></span></div>
 <?php endif; ?>
 
-<!-- Header Panel with Log Time Button -->
+<!-- Header Panel with Schedule & Totals -->
 <div class="panel" style="margin-bottom: 24px; background: linear-gradient(135deg, var(--light-blue-dark), var(--light-blue)); color: white; border: none;">
-    <div class="panel-body" style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="panel-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
-            <h2 style="font-family: var(--font-heading); font-size: 22px; margin-bottom: 4px;">Ready to log your hours?</h2>
+            <h2 style="font-family: var(--font-heading); font-size: 22px; margin-bottom: 8px;">Log your hours</h2>
             <p style="font-size: 14px; opacity: 0.9;">
-                Standard Hours: <strong><?= number_format($totalHours, 2) ?></strong> 
-                <?php if ($totalOvertime > 0): ?> | Overtime: <strong style="color: #FFEDD5;"><?= number_format($totalOvertime, 2) ?></strong><?php endif; ?>
+                <i class="fas fa-clock"></i> Required Shift: <strong><?= date('h:i A', strtotime($shiftStart)) ?> - <?= date('h:i A', strtotime($shiftEnd)) ?></strong>
             </p>
         </div>
+        
+        <div style="display: flex; gap: 20px; text-align: right;">
+            <div>
+                <div style="font-size: 12px; text-transform: uppercase; opacity: 0.8;">Verified Hours</div>
+                <div style="font-size: 24px; font-weight: 800; color: #E8F5E9;"><?= number_format($totalHours, 2) ?></div>
+            </div>
+            <?php if ($pendingHours > 0): ?>
+            <div>
+                <div style="font-size: 12px; text-transform: uppercase; opacity: 0.8;">Pending (Uncounted)</div>
+                <div style="font-size: 24px; font-weight: 800; color: var(--gray-300);"><?= number_format($pendingHours, 2) ?></div>
+            </div>
+            <?php endif; ?>
+        </div>
+
         <button type="button" class="btn btn-primary" onclick="openLogModal()" style="background: var(--white); color: var(--light-blue-dark); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
             <i class="fas fa-clock"></i> Log Time
         </button>
@@ -57,19 +79,9 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             <div class="field" style="margin: 0;">
                 <select id="filterStatus" style="padding: 8px 12px; font-size: 13px;">
                     <option value="all">All Statuses</option>
-                    <option value="Whole Day">Whole Day</option>
-                    <option value="Half Day">Half Day</option>
-                    <option value="Undertime">Undertime</option>
-                    <option value="Overtime">Overtime</option>
-                    <option value="Exceeded Overtime">Exceeded Overtime</option>
-                </select>
-            </div>
-            <div class="field" style="margin: 0;">
-                <select id="filterPunctuality" style="padding: 8px 12px; font-size: 13px;">
-                    <option value="all">All Punctuality</option>
-                    <option value="Early">Early</option>
-                    <option value="On Time">On Time</option>
-                    <option value="Late">Late</option>
+                    <option value="verified">Verified</option>
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
                 </select>
             </div>
         </div>
@@ -82,18 +94,27 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                         <th>Date</th>
                         <th>Time In / Out</th>
                         <th>Hours</th>
-                        <th>Punctuality</th>
-                        <th>Status</th>
+                        <th>Verification</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($records)): ?>
-                        <tr><td colspan="6" class="empty">No attendance yet. Click "Log Time" to start.</td></tr>
+                        <tr><td colspan="5" class="empty">No attendance yet. Click "Log Time" to start.</td></tr>
                     <?php else: ?>
-                        <?php foreach ($records as $r): ?>
-                            <tr class="att-row" data-status="<?= e($r['status']) ?>" data-punctuality="<?= e($r['punctuality'] ?? 'On Time') ?>">
-                                <td class="att-date"><?= date('M d, Y (D)', strtotime($r['log_date'])) ?></td>
+                        <?php foreach ($records as $r): 
+                            // UI Logic for Verification Status
+                            $v_status = $r['verification_status'] ?? 'pending';
+                            $row_opacity = ($v_status === 'pending') ? '0.6' : '1';
+                            $badge_color = ($v_status === 'verified') ? 'background:#E8F5E9; color:#1B5E20;' : (($v_status === 'rejected') ? 'background:var(--red-light); color:var(--red-dark);' : 'background:var(--gray-200); color:var(--gray-600);');
+                        ?>
+                            <tr class="att-row" data-status="<?= e($v_status) ?>" style="opacity: <?= $row_opacity ?>;">
+                                <td class="att-date">
+                                    <?= date('M d, Y (D)', strtotime($r['log_date'])) ?>
+                                    <?php if ($v_status === 'pending'): ?>
+                                        <br><small style="color:var(--gray-500);"><i class="fas fa-hourglass-half"></i> Waiting for Supervisor</small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <span style="color:var(--gray-600);"><?= $r['time_in'] ? date('h:i A', strtotime($r['time_in'])) : '—' ?></span>
                                     <span style="margin:0 8px; color:var(--gray-400);">→</span>
@@ -101,21 +122,9 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                                 </td>
                                 <td><strong><?= number_format((float)$r['total_hours'], 2) ?></strong></td>
                                 <td>
-                                    <span class="badge" style="background:
-                                        <?php if($r['punctuality'] == 'Early') echo '#E8F5E9; color:#1B5E20;';
-                                              elseif($r['punctuality'] == 'On Time') echo '#E0F2FE; color:#0284C7;';
-                                              else echo '#FEE2E2; color:#991B1B;'; ?>">
-                                        <?= e($r['punctuality'] ?? 'On Time') ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge" style="background:
-                                        <?php if($r['status'] == 'Whole Day') echo '#E8F5E9; color:#1B5E20;';
-                                              elseif($r['status'] == 'Half Day') echo '#E0F2FE; color:#0284C7;';
-                                              elseif($r['status'] == 'Undertime') echo '#FFF8E1; color:#B26A00;';
-                                              elseif($r['status'] == 'Overtime') echo '#FFEDD5; color:#C2410C;';
-                                              else echo '#FEE2E2; color:#991B1B;'; ?>">
-                                        <?= e($r['status']) ?>
+                                    <span class="badge" style="<?= $badge_color ?>">
+                                        <i class="fas <?= $v_status === 'verified' ? 'fa-check-circle' : 'fa-clock' ?>"></i> 
+                                        <?= ucfirst($v_status) ?>
                                     </span>
                                 </td>
                                 <td>
@@ -132,9 +141,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     </div>
 </div>
 
-<!-- ========================================== -->
 <!-- LOG TIME MODAL -->
-<!-- ========================================== -->
 <div class="modal-overlay" id="logTimeModal">
     <div class="modal-box" style="max-width: 500px; padding: 0;">
         <form action="/PractiTrack/php/student/attendance-handler.php" method="POST" style="display: flex; flex-direction: column; max-height: 85vh;">
@@ -147,6 +154,10 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             </div>
 
             <div class="modal-body">
+                <div class="alert alert-info" style="margin-bottom:16px; font-size:13px;">
+                    <i class="fas fa-info-circle"></i> Logged hours are <strong>Pending</strong> until your Company Supervisor verifies them.
+                </div>
+
                 <div class="field">
                     <label>Date</label>
                     <input type="date" name="log_date" value="<?= date('Y-m-d') ?>" required>
@@ -175,17 +186,8 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                 </div>
 
                 <div class="field" style="margin-top: 12px;">
-                    <label>Auto-Status</label>
-                    <input type="text" id="status_display" readonly value="Waiting..." style="background:var(--gray-100); font-weight:bold;">
-                </div>
-
-                <div class="field" style="margin-top: 12px;">
                     <label>Remarks (optional)</label>
                     <input type="text" name="remarks" placeholder="e.g., Worked on documentation">
-                </div>
-                
-                <div class="form-hint" style="margin-top:10px;">
-                    <em>* 8+ hours automatically deducts 1 hour for lunch. Max standard time is 7:00 PM.</em>
                 </div>
             </div>
 
@@ -197,9 +199,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     </div>
 </div>
 
-<!-- ========================================== -->
 <!-- VIEW DETAILS MODAL -->
-<!-- ========================================== -->
 <div class="modal-overlay" id="attendanceModal">
     <div class="modal-box" style="padding: 0;">
         <div class="modal-header" style="background:var(--light-blue-light); border-bottom:2px solid var(--light-blue);">
@@ -216,20 +216,12 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                 <span class="detail-value" id="m_times"></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Punctuality</span>
-                <span class="detail-value" id="m_punctuality"></span>
+                <span class="detail-label">Hours Rendered</span>
+                <span class="detail-value" id="m_hours" style="color:var(--light-blue-dark);"></span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Standard Hours</span>
-                <span class="detail-value" id="m_standard_hours" style="color:var(--light-blue-dark);"></span>
-            </div>
-            <div class="detail-row overtime-row" id="m_overtime_row" style="display:none; background:#FFF8E1; border-left:4px solid var(--warning);">
-                <span class="detail-label" style="color:#B26A00;">Overtime Hours</span>
-                <span class="detail-value" id="m_overtime_hours" style="color:#B26A00; font-size:16px;"></span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">Status</span>
-                <span class="detail-value" id="m_status"></span>
+                <span class="detail-label">Verification Status</span>
+                <span class="detail-value" id="m_verification"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Remarks</span>
@@ -243,14 +235,12 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 </div>
 
 <script>
-    // --- Log Time Modal Logic ---
+    // --- Modal Logic ---
     const logModal = document.getElementById('logTimeModal');
     function openLogModal() { logModal.classList.add('open'); }
     function closeLogModal() { logModal.classList.remove('open'); }
 
-    // --- View Details Modal Logic ---
     const viewModal = document.getElementById('attendanceModal');
-
     function viewAttendance(data) {
         const formatTime = (timeStr) => {
             if (!timeStr) return '—';
@@ -260,7 +250,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             h = h % 12 || 12;
             return `${h}:${m} ${ampm}`;
         };
-
         const formatDate = (dateStr) => {
             const d = new Date(dateStr);
             return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -268,68 +257,55 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
 
         document.getElementById('m_date').textContent = formatDate(data.log_date);
         document.getElementById('m_times').textContent = `${formatTime(data.time_in)} - ${formatTime(data.time_out)}`;
-        document.getElementById('m_punctuality').textContent = data.punctuality || 'On Time';
-        document.getElementById('m_status').textContent = data.status;
+        document.getElementById('m_hours').textContent = parseFloat(data.total_hours).toFixed(2) + ' hours';
         document.getElementById('m_remarks').textContent = data.remarks || 'No remarks provided.';
-        document.getElementById('m_standard_hours').textContent = parseFloat(data.total_hours).toFixed(2) + ' hours';
-
-        const otHours = parseFloat(data.overtime_hours || 0);
-        const otRow = document.getElementById('m_overtime_row');
-        if (otHours > 0) {
-            otRow.style.display = 'flex';
-            document.getElementById('m_overtime_hours').textContent = otHours.toFixed(2) + ' hours';
-        } else {
-            otRow.style.display = 'none';
-        }
-
+        
+        let vHtml = '';
+        if (data.verification_status === 'verified') vHtml = '<span class="badge" style="background:#E8F5E9; color:#1B5E20;">Verified</span>';
+        else if (data.verification_status === 'rejected') vHtml = '<span class="badge" style="background:var(--red-light); color:var(--red-dark);">Rejected</span>';
+        else vHtml = '<span class="badge" style="background:var(--gray-200); color:var(--gray-600);">Pending</span>';
+        
+        document.getElementById('m_verification').innerHTML = vHtml;
         viewModal.classList.add('open');
     }
-
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-    // Close on clicking outside
+    
     window.addEventListener('click', (e) => {
         if (e.target === logModal) closeLogModal();
         if (e.target === viewModal) closeModal('attendanceModal');
     });
 
-    // --- Search & Filter Logic ---
+    // --- Search & Filter ---
     const searchInput = document.getElementById('searchDate');
     const filterStatus = document.getElementById('filterStatus');
-    const filterPunctuality = document.getElementById('filterPunctuality');
     const rows = document.querySelectorAll('.att-row');
     const countDisplay = document.getElementById('recordCount');
 
     function filterTable() {
         const searchTerm = searchInput.value.toLowerCase();
         const statusTerm = filterStatus.value;
-        const punctualityTerm = filterPunctuality.value;
         let visibleCount = 0;
 
         rows.forEach(row => {
             const dateText = row.querySelector('.att-date').textContent.toLowerCase();
             const rowStatus = row.getAttribute('data-status');
-            const rowPunctuality = row.getAttribute('data-punctuality');
 
             const matchesSearch = dateText.includes(searchTerm);
             const matchesStatus = (statusTerm === 'all') || (rowStatus === statusTerm);
-            const matchesPunctuality = (punctualityTerm === 'all') || (rowPunctuality === punctualityTerm);
 
-            if (matchesSearch && matchesStatus && matchesPunctuality) {
+            if (matchesSearch && matchesStatus) {
                 row.style.display = '';
                 visibleCount++;
             } else {
                 row.style.display = 'none';
             }
         });
-
         countDisplay.textContent = `${visibleCount} record(s)`;
     }
 
-    if (searchInput && filterStatus && filterPunctuality) {
+    if (searchInput && filterStatus) {
         searchInput.addEventListener('input', filterTable);
         filterStatus.addEventListener('change', filterTable);
-        filterPunctuality.addEventListener('change', filterTable);
     }
 </script>
 

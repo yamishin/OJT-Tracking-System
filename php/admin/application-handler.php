@@ -12,18 +12,19 @@ $studentId = (int)$_POST['student_id'];
 $companyId = (int)$_POST['company_id'];
 $decision  = $_POST['decision']; // 'accepted' or 'rejected'
 
+// 1. Update student status
 $stmt = $pdo->prepare("UPDATE student_profiles SET application_status = ? WHERE user_id = ?");
 $stmt->execute([$decision, $studentId]);
 
-// NOTIFY STUDENT
+// 2. Notify Student
 $msg = ($decision === 'accepted') 
-    ? "Congratulations! Your application has been approved. You can now access your dashboard." 
-    : "We regret to inform you that your application was rejected. Please apply to another company.";
+    ? "Congratulations! Your application has been approved." 
+    : "We regret to inform you that your application was rejected.";
 
 $pdo->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)")
     ->execute([$studentId, "Application $decision", $msg, ($decision === 'accepted' ? 'success' : 'warning')]);
 
-// NOTIFY COMPANY
+// 3. Notify Company
 $msgCompany = ($decision === 'accepted') 
     ? "A student has been officially assigned to your company." 
     : "A student application for your company was rejected.";

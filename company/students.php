@@ -82,7 +82,7 @@ company_layout_top('My Students', 'Manage and evaluate your assigned interns');
                                 </td>
                                 <td>
                                     <a href="/PractiTrack/company/student-view.php?id=<?= $s['id'] ?>" class="btn btn-sm" style="background:#E0F2FE; color:#0284C7;">
-                                        <i class="fas fa-search"></i> Evaluate
+                                        <i class="fas fa-search"></i> View
                                     </a>
                                 </td>
                             </tr>
