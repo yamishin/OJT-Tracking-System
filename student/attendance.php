@@ -3,13 +3,12 @@ require_once __DIR__ . '/../includes/student-layout.php';
 
 $studentId = $_SESSION['user_id'];
 
-// Fetch Student Schedule
-$stmt = $pdo->prepare("SELECT shift_start, shift_end FROM student_profiles WHERE user_id = ?");
+// Fetch Approved Schedule
+$stmt = $pdo->prepare("SELECT * FROM student_schedules WHERE student_id = ? AND status = 'approved' ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
 $stmt->execute([$studentId]);
-$schedule = $stmt->fetch();
-$shiftStart = $schedule['shift_start'] ?? '08:00:00';
-$shiftEnd = $schedule['shift_end'] ?? '17:00:00';
+$mySchedule = $stmt->fetchAll();
 
+// Fetch Attendance Records
 $stmt = $pdo->prepare("SELECT * FROM attendance WHERE student_id = ? ORDER BY log_date DESC");
 $stmt->execute([$studentId]);
 $records = $stmt->fetchAll();
@@ -19,7 +18,7 @@ $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE
 $stmt->execute([$studentId]);
 $totalHours = (float)$stmt->fetchColumn();
 
-// Total PENDING hours (To show as grey/uncounted)
+// Total PENDING hours
 $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_hours),0) FROM attendance WHERE student_id = ? AND verification_status = 'pending'");
 $stmt->execute([$studentId]);
 $pendingHours = (float)$stmt->fetchColumn();
@@ -39,9 +38,19 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
     <div class="panel-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <div>
             <h2 style="font-family: var(--font-heading); font-size: 22px; margin-bottom: 8px;">Log your hours</h2>
-            <p style="font-size: 14px; opacity: 0.9;">
-                <i class="fas fa-clock"></i> Required Shift: <strong><?= date('h:i A', strtotime($shiftStart)) ?> - <?= date('h:i A', strtotime($shiftEnd)) ?></strong>
-            </p>
+            
+            <!-- Approved Schedule Tags -->
+            <div style="margin-top: 8px;">
+                <?php if (empty($mySchedule)): ?>
+                    <span style="font-size:12px; background:rgba(255,255,255,0.2); padding:6px 12px; border-radius:4px;"><i class="fas fa-exclamation-circle"></i> No approved schedule yet</span>
+                <?php else: 
+                    foreach ($mySchedule as $ms): ?>
+                        <span style="font-size:12px; background:rgba(255,255,255,0.2); padding:6px 12px; border-radius:4px; display:inline-block; margin-right:6px; margin-bottom:6px; border: 1px solid rgba(255,255,255,0.3);">
+                            <strong><?= substr($ms['day_of_week'], 0, 3) ?></strong>: <?= date('h:i A', strtotime($ms['time_start'])) ?> - <?= date('h:i A', strtotime($ms['time_end'])) ?>
+                        </span>
+                    <?php endforeach; 
+                endif; ?>
+            </div>
         </div>
         
         <div style="display: flex; gap: 20px; text-align: right;">
@@ -86,6 +95,7 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
             </div>
         </div>
     </div>
+    
     <div class="panel-body no-pad">
         <div class="table-wrap">
             <table class="data-table" id="attendanceTable">
@@ -103,7 +113,6 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                         <tr><td colspan="5" class="empty">No attendance yet. Click "Log Time" to start.</td></tr>
                     <?php else: ?>
                         <?php foreach ($records as $r): 
-                            // UI Logic for Verification Status
                             $v_status = $r['verification_status'] ?? 'pending';
                             $row_opacity = ($v_status === 'pending') ? '0.6' : '1';
                             $badge_color = ($v_status === 'verified') ? 'background:#E8F5E9; color:#1B5E20;' : (($v_status === 'rejected') ? 'background:var(--red-light); color:var(--red-dark);' : 'background:var(--gray-200); color:var(--gray-600);');
@@ -188,6 +197,9 @@ student_layout_top('Attendance', 'Log your daily time in and time out');
                 <div class="field" style="margin-top: 12px;">
                     <label>Remarks (optional)</label>
                     <input type="text" name="remarks" placeholder="e.g., Worked on documentation">
+                </div>
+                <div class="form-hint" style="margin-top:10px;">
+                    <em>* 8+ hrs deducts 1 hr lunch. Overtime must be a full 1 hr to count. Max time is 7:00 PM.</em>
                 </div>
             </div>
 

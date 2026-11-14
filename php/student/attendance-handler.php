@@ -61,11 +61,18 @@ if ($action === 'log_attendance') {
     $status = '';
     $lunchDeducted = 0;
 
+    // Calculate standard hours (max 8)
     if ($rawHours >= 8) {
-        $finalHours = $rawHours - 1;
+        $finalHours = $rawHours - 1; // Deduct 1 hour lunch
         $lunchDeducted = 1;
+        
+        // Calculate strict overtime (must be a full hour to count)
         if ($finalHours > 8) {
-            $overtimeHours = $finalHours - 8;
+            $excess = $finalHours - 8;
+            // Round down to the nearest whole hour (e.g., 1.5 becomes 1.0, 0.8 becomes 0)
+            $overtimeHours = floor($excess); 
+            
+            // Standard hours maxes out at 8
             $finalHours = 8;
         }
     } elseif ($rawHours >= 3.5 && $rawHours < 4.5) {
@@ -86,7 +93,6 @@ if ($action === 'log_attendance') {
     $overtimeHours = round($overtimeHours, 2);
 
     try {
-        // Added overtime_hours to the SQL query
         $stmt = $pdo->prepare("INSERT INTO attendance (student_id, log_date, time_in, time_out, total_hours, overtime_hours, lunch_deducted, status, punctuality, remarks, verification_status)
                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
                                ON DUPLICATE KEY UPDATE time_in=VALUES(time_in), time_out=VALUES(time_out),

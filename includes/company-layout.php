@@ -7,7 +7,6 @@ $userName = $_SESSION['name'] ?? 'Company';
 $initials = strtoupper(substr($userName, 0, 1));
 $currentPage = basename($_SERVER['PHP_SELF']);
 
-// Fetch unread notifications
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
 $stmt->execute([$_SESSION['user_id']]);
 $unreadCount = (int)$stmt->fetchColumn();
@@ -25,12 +24,18 @@ function company_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '') {
         <link rel="stylesheet" href="/PractiTrack/assets/css/student.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            /* Darker Blue Theme for Company */
             .sidebar { background: linear-gradient(180deg, #0277BD 0%, #01579B 100%); } 
             .sidebar-brand .logo-mark { background: var(--red); color: var(--white); }
             .sidebar-menu a.active::before { background: var(--red); }
             .sidebar-menu a.active { color: #0277BD; }
             .user-chip .avatar { background: linear-gradient(135deg, #0288D1, #01579B) !important; }
+            .btn-logout {
+                display: flex; align-items: center; gap: 12px;
+                padding: 12px 14px; border-radius: var(--radius-sm);
+                font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.85);
+                transition: all 0.2s ease;
+            }
+            .btn-logout:hover { background: rgba(229, 57, 53, 0.2); color: #FFCDD2; }
         </style>
     </head>
     <body>
@@ -43,7 +48,8 @@ function company_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '') {
             </div>
             <div class="sidebar-role" style="color:#BAE6FD;">Company Portal</div>
 
-            <nav class="sidebar-menu">
+            <!-- MAIN NAVIGATION -->
+            <nav class="sidebar-menu" style="flex: 1; overflow-y: auto;">
                 <a href="/PractiTrack/company/dashboard.php" class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">
                     <span class="icon"><i class="fas fa-home"></i></span> Dashboard
                 </a>
@@ -59,10 +65,15 @@ function company_layout_top($pageTitle = 'Dashboard', $pageSubtitle = '') {
                         <span class="badge-count"><?= $unreadCount ?></span>
                     <?php endif; ?>
                 </a>
-                <a href="/PractiTrack/logout.php">
+            </nav>
+
+            <!-- SEPARATED LOGOUT -->
+            <div style="padding: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <a href="/PractiTrack/logout.php" class="btn-logout">
                     <span class="icon"><i class="fas fa-sign-out-alt"></i></span> Logout
                 </a>
-            </nav>
+            </div>
+
             <div class="sidebar-footer">&copy; <?= date('Y') ?> PractiTrack</div>
         </aside>
 
