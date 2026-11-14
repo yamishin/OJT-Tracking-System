@@ -134,21 +134,6 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
 
         <!-- Tab 1: Attendance -->
         <div id="tab-attendance" class="tab-content active">
-            <!-- Search & Filter -->
-            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-                <div class="field" style="margin: 0; width: 200px;">
-                    <input type="text" id="searchAtt" placeholder="Search date..." style="padding: 8px 12px; font-size: 13px;">
-                </div>
-                <div class="field" style="margin: 0;">
-                    <select id="filterAtt" style="padding: 8px 12px; font-size: 13px;">
-                        <option value="all">All Statuses</option>
-                        <option value="verified">Verified</option>
-                        <option value="pending">Pending</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
@@ -158,17 +143,18 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
                             <th>Hours</th>
                             <th>Verification</th>
                             <th>Status</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($attendance)): ?>
-                            <tr><td colspan="5" class="empty">No attendance logs.</td></tr>
+                            <tr><td colspan="6" class="empty">No attendance logs.</td></tr>
                         <?php else: ?>
                             <?php foreach ($attendance as $a): 
                                 $v_status = $a['verification_status'] ?? 'pending';
                             ?>
-                                <tr class="row-att" data-status="<?= e($v_status) ?>">
-                                    <td class="search-date"><?= date('M d, Y (D)', strtotime($a['log_date'])) ?></td>
+                                <tr>
+                                    <td><?= date('M d, Y (D)', strtotime($a['log_date'])) ?></td>
                                     <td>
                                         <?= $a['time_in'] ? date('h:i A', strtotime($a['time_in'])) : '—' ?>
                                         <span style="color:var(--gray-400); margin:0 4px;">→</span>
@@ -188,6 +174,11 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
                                             <?= e($a['status']) ?>
                                         </span>
                                     </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-ghost" onclick="viewAttendance(<?= htmlspecialchars(json_encode($a)) ?>)">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -196,23 +187,8 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
             </div>
         </div>
 
-        <!-- Tab 2: Documents (Box Design) -->
+        <!-- Tab 2: Documents -->
         <div id="tab-documents" class="tab-content">
-            <!-- Search & Filter -->
-            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-                <div class="field" style="margin: 0; width: 200px;">
-                    <input type="text" id="searchDoc" placeholder="Search document..." style="padding: 8px 12px; font-size: 13px;">
-                </div>
-                <div class="field" style="margin: 0;">
-                    <select id="filterDoc" style="padding: 8px 12px; font-size: 13px;">
-                        <option value="all">All Statuses</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="docs-grid">
                 <?php if (empty($documents)): ?>
                     <div class="empty-state" style="grid-column: 1/-1;">No documents uploaded.</div>
@@ -221,15 +197,14 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
                         $ext = strtolower(pathinfo($d['file_name'], PATHINFO_EXTENSION));
                         $icon = ($ext === 'pdf') ? 'fa-file-pdf' : 'fa-file-image';
                     ?>
-                        <div class="doc-box row-doc" data-status="<?= e($d['status']) ?>">
+                        <div class="doc-box">
                             <div style="display:flex; justify-content:space-between;">
                                 <div class="doc-icon"><i class="fas <?= $icon ?>"></i></div>
                                 <span class="badge <?= e($d['status']) ?>"><?= e($d['status']) ?></span>
                             </div>
-                            <div class="doc-title search-doctype"><?= e($d['doc_type']) ?></div>
+                            <div class="doc-title"><?= e($d['doc_type']) ?></div>
                             <div class="doc-file"><?= e($d['file_name']) ?></div>
                             
-                            <!-- Approve/Reject Form -->
                             <?php if ($d['status'] === 'pending'): ?>
                                 <form action="/PractiTrack/php/school/document-handler.php" method="POST" style="margin-top: 10px; border-top: 1px dashed var(--gray-200); padding-top: 10px;">
                                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -260,21 +235,6 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
 
         <!-- Tab 3: Weekly Reports -->
         <div id="tab-reports" class="tab-content">
-            <!-- Search & Filter -->
-            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-                <div class="field" style="margin: 0; width: 200px;">
-                    <input type="text" id="searchRep" placeholder="Search date..." style="padding: 8px 12px; font-size: 13px;">
-                </div>
-                <div class="field" style="margin: 0;">
-                    <select id="filterRep" style="padding: 8px 12px; font-size: 13px;">
-                        <option value="all">All Statuses</option>
-                        <option value="submitted">Submitted</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
@@ -291,8 +251,8 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
                             <tr><td colspan="5" class="empty">No reports submitted.</td></tr>
                         <?php else: ?>
                             <?php foreach ($reports as $r): ?>
-                                <tr class="row-rep" data-status="<?= e($r['status']) ?>">
-                                    <td class="search-date"><?= date('M d', strtotime($r['week_start'])) ?> - <?= date('M d, Y', strtotime($r['week_end'])) ?></td>
+                                <tr>
+                                    <td><?= date('M d', strtotime($r['week_start'])) ?> - <?= date('M d, Y', strtotime($r['week_end'])) ?></td>
                                     <td><span class="badge" style="background:#F3F4F6; color:#374151;"><?= ucfirst($r['report_type']) ?></span></td>
                                     <td><?= number_format((float)$r['hours_rendered'], 2) ?></td>
                                     <td><span class="badge <?= e($r['status']) ?>"><?= e($r['status']) ?></span></td>
@@ -308,6 +268,47 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
     </div>
 </div>
 
+<!-- VIEW ATTENDANCE MODAL -->
+<div class="modal-overlay" id="viewAttModal">
+    <div class="modal-box" style="max-width: 500px; padding: 0;">
+        <div class="modal-header">
+            <h3><i class="fas fa-calendar-check"></i> Attendance Details</h3>
+            <button type="button" class="modal-close" onclick="closeAttModal()"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="detail-row">
+                <span class="detail-label">Date</span>
+                <span class="detail-value" id="att_date"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Time In / Out</span>
+                <span class="detail-value" id="att_times"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Total Hours</span>
+                <span class="detail-value" id="att_hours" style="color:var(--light-blue-dark); font-size:16px;"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Overtime</span>
+                <span class="detail-value" id="att_ot" style="color:var(--warning); font-weight:bold;"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Verification Status</span>
+                <span class="detail-value" id="att_verification"></span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Remarks</span>
+                <span class="detail-value" id="att_remarks" style="font-weight:normal; color:var(--gray-600); font-style:italic;"></span>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-sm" onclick="closeAttModal()" style="background:var(--gray-200); color:var(--gray-800);">Close</button>
+        </div>
+    </div>
+</div>
+
 <script>
     function openTab(btn, tabName) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -316,42 +317,36 @@ school_layout_top('Student Profile', 'Review progress, documents, and evaluation
         btn.classList.add('active');
     }
 
-    // --- Filter Logic ---
-    function setupFilter(searchId, filterId, rowClass, textClass) {
-        const searchInput = document.getElementById(searchId);
-        const filterSelect = document.getElementById(filterId);
-        const rows = document.querySelectorAll('.' + rowClass);
+    const viewAttModal = document.getElementById('viewAttModal');
+    function viewAttendance(data) {
+        const formatTime = (timeStr) => {
+            if (!timeStr) return '—';
+            let [h, m] = timeStr.split(':');
+            h = parseInt(h);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return `${h}:${m} ${ampm}`;
+        };
+        const formatDate = (dateStr) => {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        };
 
-        function filterData() {
-            if(!searchInput || !filterSelect) return;
-            const term = searchInput.value.toLowerCase();
-            const status = filterSelect.value;
-
-            rows.forEach(row => {
-                const textEl = row.querySelector('.' + textClass);
-                const text = textEl ? textEl.textContent.toLowerCase() : '';
-                const rowStatus = row.getAttribute('data-status');
-
-                const matchText = text.includes(term);
-                const matchStatus = (status === 'all') || (rowStatus === status);
-
-                if (matchText && matchStatus) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-
-        if(searchInput && filterSelect) {
-            searchInput.addEventListener('input', filterData);
-            filterSelect.addEventListener('change', filterData);
-        }
+        document.getElementById('att_date').textContent = formatDate(data.log_date);
+        document.getElementById('att_times').textContent = `${formatTime(data.time_in)} - ${formatTime(data.time_out)}`;
+        document.getElementById('att_hours').textContent = parseFloat(data.total_hours).toFixed(2) + ' hours';
+        document.getElementById('att_ot').textContent = data.overtime_hours > 0 ? parseFloat(data.overtime_hours).toFixed(2) + ' hours' : 'None';
+        document.getElementById('att_remarks').textContent = data.remarks || 'No remarks provided.';
+        
+        let vHtml = '';
+        if (data.verification_status === 'verified') vHtml = '<span class="badge" style="background:#E8F5E9; color:#1B5E20;">Verified</span>';
+        else if (data.verification_status === 'rejected') vHtml = '<span class="badge" style="background:var(--red-light); color:var(--red-dark);">Rejected</span>';
+        else vHtml = '<span class="badge" style="background:var(--gray-200); color:var(--gray-600);">Pending</span>';
+        
+        document.getElementById('att_verification').innerHTML = vHtml;
+        viewAttModal.classList.add('open');
     }
-
-    setupFilter('searchAtt', 'filterAtt', 'row-att', 'search-date');
-    setupFilter('searchDoc', 'filterDoc', 'row-doc', 'search-doctype');
-    setupFilter('searchRep', 'filterRep', 'row-rep', 'search-date');
+    function closeAttModal() { viewAttModal.classList.remove('open'); }
 </script>
 
 <?php school_layout_bottom(); ?>

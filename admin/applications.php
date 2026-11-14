@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/admin-layout.php';
 
-// 1. Fetch Pending Applications
+// 1. Fetch Pending Applications (from current profiles)
 $stmt = $pdo->query("
     SELECT u.id, u.first_name, u.last_name, sp.student_no, sp.course, cp.company_name, sp.company_id, sp.application_status
     FROM users u
@@ -12,14 +12,17 @@ $stmt = $pdo->query("
 ");
 $pendingApps = $stmt->fetchAll();
 
-// 2. Fetch Application History (Accepted or Rejected)
+// 2. Fetch Application History (from the new history table)
 $stmt = $pdo->query("
-    SELECT u.id, u.first_name, u.last_name, sp.student_no, sp.course, cp.company_name, sp.application_status
-    FROM users u
+    SELECT ah.id as history_id, ah.status, ah.applied_at, 
+           u.first_name, u.last_name, sp.student_no, sp.course, 
+           cp.company_name
+    FROM application_history ah
+    JOIN users u ON u.id = ah.student_id
     JOIN student_profiles sp ON sp.user_id = u.id
-    JOIN company_profiles cp ON cp.user_id = sp.company_id
-    WHERE sp.application_status IN ('accepted', 'rejected')
-    ORDER BY u.last_name ASC
+    JOIN company_profiles cp ON cp.user_id = ah.company_id
+    WHERE ah.status IN ('accepted', 'rejected')
+    ORDER BY ah.applied_at DESC
 ");
 $historyApps = $stmt->fetchAll();
 
@@ -88,6 +91,7 @@ admin_layout_top('OJT Applications', 'Review student applications and view histo
             <table class="data-table">
                 <thead>
                     <tr>
+                        <th>Date Applied</th>
                         <th>Student Name</th>
                         <th>USN / Course</th>
                         <th>Company</th>
@@ -96,15 +100,16 @@ admin_layout_top('OJT Applications', 'Review student applications and view histo
                 </thead>
                 <tbody>
                     <?php if (empty($historyApps)): ?>
-                        <tr><td colspan="4" class="empty">No application history yet.</td></tr>
+                        <tr><td colspan="5" class="empty">No application history yet.</td></tr>
                     <?php else: ?>
                         <?php foreach ($historyApps as $app): ?>
                             <tr>
+                                <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
                                 <td><strong><?= e($app['first_name'] . ' ' . $app['last_name']) ?></strong></td>
                                 <td><?= e($app['student_no']) ?> <br><small style="color:var(--gray-400);"><?= e($app['course']) ?></small></td>
                                 <td><span style="font-weight:600; color:#0F766E;"><?= e($app['company_name']) ?></span></td>
                                 <td>
-                                    <?php if ($app['application_status'] === 'accepted'): ?>
+                                    <?php if ($app['status'] === 'accepted'): ?>
                                         <span class="badge approved"><i class="fas fa-check-circle"></i> Accepted</span>
                                     <?php else: ?>
                                         <span class="badge rejected"><i class="fas fa-times-circle"></i> Rejected</span>

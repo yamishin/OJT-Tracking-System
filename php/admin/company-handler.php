@@ -8,7 +8,6 @@ if (!verify_csrf($_POST['csrf_token'] ?? '')) {
     redirect('/PractiTrack/admin/companies.php');
 }
 
-// Define action and companyId at the top
 $action = $_POST['action'] ?? '';
 $companyId = (int)($_POST['company_id'] ?? 0);
 
@@ -55,7 +54,11 @@ if ($action === 'add_company') {
         $stmt = $pdo->prepare("INSERT INTO company_profiles 
             (user_id, company_name, industry, max_slots, is_partner, description, available_positions, requirements, address, website, hr_contact_person, social_media) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$userId, $companyName, $industry, $maxSlots, $isPartner, $description, $positions, $requirements, $address, $website, $hrContact, $social]);
+        
+        $stmt->execute([
+            $userId, $companyName, $industry, $maxSlots, $isPartner, 
+            $description, $positions, $requirements, $address, $website, $hrContact, $social
+        ]);
 
         $pdo->commit();
         set_flash('success', "Company created!<br><br><strong>Email:</strong> $email<br><strong>Password:</strong> $generatedPassword<br><br><em>Please copy this password and give it to the company.</em>");
@@ -69,7 +72,7 @@ if ($action === 'add_company') {
 }
 
 // ============================================
-// 2. HANDLE QUICK TOGGLE (Make/Remove Partner)
+// 2. HANDLE QUICK TOGGLE
 // ============================================
 if ($action === '' && isset($_POST['current_status'])) {
     $currentStatus = (int)$_POST['current_status'];

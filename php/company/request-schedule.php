@@ -10,11 +10,8 @@ if (!verify_csrf($_POST['csrf_token'] ?? '')) {
 
 $studentId = (int)$_POST['student_id'];
 $companyId = $_SESSION['user_id'];
-$days = $_POST['day'] ?? [];
-$starts = $_POST['start'] ?? [];
-$ends = $_POST['end'] ?? [];
 
-// Verify student
+// Verify student belongs to this company
 $stmt = $pdo->prepare("SELECT id FROM student_profiles WHERE user_id = ? AND company_id = ?");
 $stmt->execute([$studentId, $companyId]);
 if (!$stmt->fetch()) {
@@ -22,19 +19,50 @@ if (!$stmt->fetch()) {
     redirect('/PractiTrack/company/students.php');
 }
 
+// Collect calendar data (format: "08:00 - 17:00" or empty)
+$days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+$scheduleData = [];
+
+foreach ($days as $day) {
+    $start = $_POST["{$day}_start"] ?? '';
+    $end = $_POST["{$day}_end"] ?? '';
+    
+    if (!empty($start) && !empty($end)) {
+        $scheduleData[$day] = "$start - $end";
+    } else {
+        $scheduleData[$day] = null;
+    }
+}
+
 try {
     $pdo->beginTransaction();
 
-    // Delete old pending requests for this student
-    $pdo->prepare("DELETE FROM student_schedules WHERE student_id = ? AND status = 'pending'")->execute([$studentId]);
+    // Check if student already has a schedule record
+    $stmt = $pdo->prepare("SELECT id, status FROM student_schedules WHERE student_id = ?");
+    $stmt->execute([$studentId]);
+    $existing = $stmt->fetch();
 
-    // Insert new schedule requests
-    $stmt = $pdo->prepare("INSERT INTO student_schedules (student_id, day_of_week, time_start, time_end, status) VALUES (?, ?, ?, ?, 'pending')");
-    
-    for ($i = 0; $i < count($days); $i++) {
-        if (!empty($days[$i]) && !empty($starts[$i]) && !empty($ends[$i])) {
-            $stmt->execute([$studentId, $days[$i], $starts[$i], $ends[$i]]);
-        }
+    if ($existing) {
+        // Update existing schedule
+        $stmt = $pdo->prepare("UPDATE student_schedules SET 
+            monday = ?, tuesday = ?, wednesday = ?, thursday = ?, friday = ?, saturday = ?, sunday = ?, 
+            status = 'pending', requested_at = NOW() 
+            WHERE student_id = ?");
+        $stmt->execute([
+            $scheduleData['monday'], $scheduleData['tuesday'], $scheduleData['wednesday'], 
+            $scheduleData['thursday'], $scheduleData['friday'], $scheduleData['saturday'], 
+            $scheduleData['sunday'], $studentId
+        ]);
+    } else {
+        // Insert new schedule
+        $stmt = $pdo->prepare("INSERT INTO student_schedules 
+            (student_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+        $stmt->execute([
+            $studentId, $scheduleData['monday'], $scheduleData['tuesday'], $scheduleData['wednesday'], 
+            $scheduleData['thursday'], $scheduleData['friday'], $scheduleData['saturday'], 
+            $scheduleData['sunday']
+        ]);
     }
 
     // Notify Instructor
